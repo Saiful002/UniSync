@@ -7,11 +7,12 @@ import useSWR from "swr";
 import "react-datepicker/dist/react-datepicker.css";
 
 const fetcher = (url, body) =>
-  fetch(url, {
+  fetch(`http://localhost:5000${url}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   }).then((res) => res.json());
+
 
 
 const roomTypes = ["Classroom", "Seminar Hall", "Conference Room", "Lab Room"];
@@ -32,29 +33,54 @@ export default function RoomBooking() {
     );
   };
 
+  const formatDate = (date) => {
+    const year = date.getFullYear();
+    const month = `${date.getMonth() + 1}`.padStart(2, "0");
+    const day = `${date.getDate()}`.padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+  
+  
+
   const handleFilter = () => {
     if (!selectedDate || !selectedTime) return alert("Date and Time required");
-    const payload = {
+  
+    const formattedDate = formatDate(selectedDate); // <-- use local date format
+  
+    const query = new URLSearchParams({
       type: selectedType,
-      amenities: selectedAmenities,
-      date: selectedDate.toISOString().split("T")[0],
+      amenities: selectedAmenities.join(","),
+      date: formattedDate,
       time: selectedTime,
-    };
-    setFilterParams(payload); // Pass object, not string
-  };
+    });
 
-  console.log({
-    type: selectedType,
-    amenities: selectedAmenities,
-    date: selectedDate?.toISOString().split("T")[0],
-    time: selectedTime,
-  });
+    console.log({
+      type: selectedType,
+      amenities: selectedAmenities.join(","),
+      date: formattedDate,
+      time: selectedTime,
+    });
+  
+    setFilterParams(query.toString());
+  };
+  
+  
+
+ 
   
 // SWR usage
 const { data: rooms, error, isLoading } = useSWR(
-  filterParams ? ["/api/available-rooms", filterParams] : null,
-  ([url, body]) => fetcher("http://localhost:5000" + url, body)
+  filterParams
+    ? ["/api/available-rooms", {
+        type: selectedType,
+        amenities: selectedAmenities,
+        date: formatDate(selectedDate),
+        time: selectedTime,
+      }]
+    : null,
+  ([url, body]) => fetcher(url, body)
 );
+
 
   return (
     <div className="p-4 max-w-7xl mx-auto">

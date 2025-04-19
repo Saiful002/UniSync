@@ -18,6 +18,12 @@ const db = mysql.createPool({
 app.post("/api/available-rooms", async (req, res) => {
   const { type, amenities, date, time } = req.body;
 
+  console.log("Incoming request body:", req.body); // Debug
+
+  if (!type || !date || !time) {
+    return res.status(400).json({ message: "Missing required fields" });
+  }
+
   try {
     const [rooms] = await db.query(
       `SELECT r.id, r.name, r.annex
@@ -28,39 +34,36 @@ app.post("/api/available-rooms", async (req, res) => {
          SELECT 1 FROM bookings b
          WHERE b.room_id = r.id
          AND b.booking_date = ?
-         AND ? >= b.start_time
-         AND ? < b.end_time
+         AND (? < b.end_time AND ? > b.start_time)
        )`,
       [type, date, time, time]
     );
-    
-    
-    
 
-    // const roomIds = rooms.map((room) => room.id);
-    // let filteredRooms = rooms;
+    const roomIds = rooms.map((room) => room.id);
+    let filteredRooms = rooms;
 
-    // if (amenities.length > 0) {
-    //   const placeholders = amenities.map(() => "?").join(",");
-    //   const [results] = await db.query(
-    //     `SELECT ra.room_id
-    //      FROM room_amenities ra
-    //      JOIN amenities a ON ra.amenity_id = a.id
-    //      WHERE a.name IN (${placeholders})
-    //      GROUP BY ra.room_id
-    //      HAVING COUNT(DISTINCT a.name) = ?`,
-    //     [...amenities, amenities.length]
-    //   );
+    if (amenities.length > 0) {
+      const placeholders = amenities.map(() => "?").join(",");
+      const [results] = await db.query(
+        `SELECT ra.room_id
+         FROM room_amenities ra
+         JOIN amenities a ON ra.amenity_id = a.id
+         WHERE a.name IN (${placeholders})
+         GROUP BY ra.room_id
+         HAVING COUNT(DISTINCT a.name) = ?`,
+        [...amenities, amenities.length]
+      );
 
-    //   const matchedRoomIds = results.map((r) => r.room_id);
-    //   filteredRooms = rooms.filter((room) => matchedRoomIds.includes(room.id));
-    // }
+      const matchedRoomIds = results.map((r) => r.room_id);
+      filteredRooms = rooms.filter((room) => matchedRoomIds.includes(room.id));
+    }
 
-    // res.json(filteredRooms);
+    res.json(filteredRooms);
   } catch (err) {
-    console.error(err);
+    console.error("Query Error:", err);
     res.status(500).json({ message: "Error fetching rooms" });
   }
 });
+
 
 app.listen(5000, () => console.log("Server running on http://localhost:5000"));
