@@ -2,33 +2,27 @@
 
 import { useState } from "react";
 import DatePicker from "react-datepicker";
+import useSWR from "swr";
 
 import "react-datepicker/dist/react-datepicker.css";
 
-const initialRooms = {
-  "Annex E": ["E-101", "E-102", "E-103", "E-104", "E-105", "E-106", "E-107", "E-108", "E-109"],
-  "Annex F": ["All Dean’s & Chairperson’s Room"],
-  "Annex G": ["G-101", "G-102", "G-103", "G-104", "G-105", "G-106", "G-107", "G-108", "G-109"],
-  "Annex H": ["H-101", "H-102", "H-103", "H-104", "H-105", "H-106", "H-107", "H-108", "H-109"],
-  "Annex J": ["J-101", "J-102", "J-103", "J-104", "J-105", "J-106", "J-107", "J-108", "J-109"],
-  "Annex K": ["K-101", "K-102", "K-103", "K-104", "K-105", "K-106", "K-107", "K-108", "K-109"],
-  "Annex L": ["L-101", "L-102", "L-103", "L-104", "L-105", "L-106", "L-107", "L-108", "L-109"],
-  "Annex M": ["Green Cafeteria"],
-};
+const fetcher = (url, body) =>
+  fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  }).then((res) => res.json());
 
-const roomTypes = ["Classroom", "Seminar Hall", "Conference Room"];
-const amenities = ["Projector", "AC", "Whiteboard"];
+
+const roomTypes = ["Classroom", "Seminar Hall", "Conference Room", "Lab Room"];
+const amenities = ["Projector", "PC", "Whiteboard"];
 
 export default function RoomBooking() {
   const [selectedType, setSelectedType] = useState("");
   const [selectedAmenities, setSelectedAmenities] = useState([]);
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState("");
-  const [filtered, setFiltered] = useState(false);
-
-  const handleFilter = () => {
-    setFiltered(true);
-  };
+  const [filterParams, setFilterParams] = useState(null);
 
   const toggleAmenity = (amenity) => {
     setSelectedAmenities((prev) =>
@@ -38,11 +32,34 @@ export default function RoomBooking() {
     );
   };
 
+  const handleFilter = () => {
+    if (!selectedDate || !selectedTime) return alert("Date and Time required");
+    const payload = {
+      type: selectedType,
+      amenities: selectedAmenities,
+      date: selectedDate.toISOString().split("T")[0],
+      time: selectedTime,
+    };
+    setFilterParams(payload); // Pass object, not string
+  };
+
+  console.log({
+    type: selectedType,
+    amenities: selectedAmenities,
+    date: selectedDate?.toISOString().split("T")[0],
+    time: selectedTime,
+  });
+  
+// SWR usage
+const { data: rooms, error, isLoading } = useSWR(
+  filterParams ? ["/api/available-rooms", filterParams] : null,
+  ([url, body]) => fetcher("http://localhost:5000" + url, body)
+);
+
   return (
     <div className="p-4 max-w-7xl mx-auto">
       <h1 className="text-3xl font-bold mb-6 text-center">Room Booking</h1>
 
-      {/* Filters */}
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <select
           className="p-2 border rounded-md"
@@ -51,7 +68,7 @@ export default function RoomBooking() {
         >
           <option value="">Select Room Type</option>
           {roomTypes.map((type) => (
-            <option key={type} value={type}>{type}</option>
+            <option className="text-black" key={type} value={type}>{type}</option>
           ))}
         </select>
 
@@ -99,45 +116,27 @@ export default function RoomBooking() {
         Apply Filters
       </button>
 
-      {/* Tabular view before filtering */}
-      {!filtered && (
-        <div className="overflow-x-auto">
-          <table className="min-w-full border border-gray-200">
-            <tbody>
-              {Object.entries(initialRooms).map(([annex, rooms]) => (
-                <tr key={annex} className="border-b">
-                  <td className="font-semibold p-2 whitespace-nowrap w-32 align-top">{annex}</td>
-                  <td className="p-2">
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
-                      {rooms.map((room) => (
-                        <div key={room} className="border px-3 py-2 text-sm text-center">Room {room}</div>
-                      ))}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {isLoading && <p className="text-center">Loading rooms...</p>}
+      {error && <p className="text-center text-red-500">Failed to load rooms.</p>}
 
-      {/* Room grid view after filtering */}
-      {filtered && (
+      {rooms && rooms.length > 0 && (
         <div className="mt-8">
           <h2 className="text-xl font-semibold mb-4">Available Rooms</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {Object.entries(initialRooms).flatMap(([annex, rooms]) =>
-              rooms.map((room) => (
-                <div
-                  key={room}
-                  className="border border-green-500 bg-green-100 rounded p-3 text-center hover:bg-green-200 text-black cursor-pointer transition"
-                >
-                  {room}
-                </div>
-              ))
-            )}
+            {rooms.map((room) => (
+              <div
+                key={room.id}
+                className="border border-green-500 bg-green-100 rounded p-3 text-center hover:bg-green-200 text-black cursor-pointer transition"
+              >
+                {room.name}
+              </div>
+            ))}
           </div>
         </div>
+      )}
+
+      {rooms && rooms.length === 0 && (
+        <p className="text-center text-gray-500">No available rooms found.</p>
       )}
     </div>
   );
