@@ -5,6 +5,7 @@ import DatePicker from "react-datepicker";
 import useSWR from "swr";
 
 import "react-datepicker/dist/react-datepicker.css";
+import Link from "next/link";
 
 const fetcher = (url, body) =>
   fetch(`http://localhost:5000${url}`, {
@@ -24,6 +25,13 @@ export default function RoomBooking() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState("");
   const [filterParams, setFilterParams] = useState(null);
+  const [selectedRoomId, setSelectedRoomId] = useState(null);
+
+
+  
+  const toggleSelect = (id) => {
+    setSelectedRoomId((prevId) => (prevId === id ? null : id));
+  };
 
   const toggleAmenity = (amenity) => {
     setSelectedAmenities((prev) =>
@@ -40,6 +48,12 @@ export default function RoomBooking() {
     return `${year}-${month}-${day}`;
   };
   
+  
+
+  const handleViewDetails = () => {
+    sessionStorage.setItem("selectedDate", formatDate(selectedDate));
+    sessionStorage.setItem("selectedTime", selectedTime);
+  };
   
 
   const handleFilter = () => {
@@ -148,16 +162,37 @@ const { data: rooms, error, isLoading } = useSWR(
       {rooms && rooms.length > 0 && (
         <div className="mt-8">
           <h2 className="text-xl font-semibold mb-4">Available Rooms</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {rooms.map((room) => (
-              <div
-                key={room.id}
-                className="border border-green-500 bg-green-100 rounded p-3 text-center hover:bg-green-200 text-black cursor-pointer transition"
-              >
-                {room.name}
-              </div>
-            ))}
+          <div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+        {rooms.map((room) => (
+          <div
+            key={room.id}
+            onClick={() => toggleSelect(room.id)}
+            className={`border rounded p-3 text-center cursor-pointer transition
+              ${selectedRoomId === room.id
+                ? "bg-red-200 border-red-500 text-black"
+                : "bg-green-100 border-green-500 hover:bg-green-200 text-black"}
+            `}
+          >
+            {room.name}
           </div>
+        ))}
+      </div>
+
+      {selectedRoomId && (
+        <div className="mt-4 flex justify-center">
+          <Link href={`/RoomDetails/${selectedRoomId}`}>
+  <button
+    onClick={handleViewDetails}
+    className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded transition"
+  >
+    View Details
+  </button>
+</Link>
+
+        </div>
+      )}
+    </div>
         </div>
       )}
 
