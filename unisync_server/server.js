@@ -1,6 +1,7 @@
 // Express.js backend (app.js or routes/rooms.js)
 const express = require('express');
 const mysql = require('mysql2/promise');
+const jwt = require("jsonwebtoken");
 const cors = require('cors');
 const app = express();
 
@@ -13,6 +14,8 @@ const db = mysql.createPool({
   password: "1234", // your MySQL password
   database: "unisync",
 });
+
+const SECRET_KEY = "your_secret_key_here"; // Keep it secure in production
 
 // GET room types
 app.post("/api/available-rooms", async (req, res) => {
@@ -89,6 +92,35 @@ app.get("/api/RoomDetails/:id", async (req, res) => {
   } catch (err) {
     console.error("DB Error:", err); // helpful for debugging
     res.status(500).json({ message: "Error fetching room details" });
+  }
+});
+
+
+// API to login
+app.post("/api/login", async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    const [rows] = await db.query(
+      "SELECT * FROM users WHERE email = ? AND password = ?",
+      [email, password]
+    );
+
+    if (rows.length === 0) {
+      return res.status(401).json({ message: "Invalid email or password" });
+    }
+
+    const user = rows[0];
+
+    // Generate JWT Token
+    const token = jwt.sign({ id: user.id, email: user.email }, SECRET_KEY, {
+      expiresIn: "2h",
+    });
+
+    res.json({ message: "Login successful", token });
+  } catch (err) {
+    console.error("Login error:", err);
+    res.status(500).json({ message: "Server error during login" });
   }
 });
 

@@ -1,14 +1,20 @@
-// components/Profile.js
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
 import { UserIcon, ArrowLeftOnRectangleIcon } from "@heroicons/react/24/outline";
+import { useRouter } from "next/navigation"; // ✅ Import router
 
 const Profile = () => {
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const router = useRouter(); // ✅ Setup router
 
   const handleToggle = () => setOpen(!open);
+
+  const handleSignOut = () => {
+    localStorage.removeItem("token"); // ✅ Remove token
+    router.push("/Login"); // ✅ Redirect to login
+  };
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -39,7 +45,7 @@ const Profile = () => {
               <UserIcon className="w-5 h-5 mr-2" /> Profile
             </button>
             <button
-              onClick={() => alert("Sign Out")}
+              onClick={handleSignOut}
               className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
             >
               <ArrowLeftOnRectangleIcon className="w-5 h-5 mr-2" /> Sign Out

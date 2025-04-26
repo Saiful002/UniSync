@@ -37,6 +37,20 @@ CREATE TABLE IF NOT EXISTS bookings (
   FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
 );
 
+CREATE TABLE users (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  email VARCHAR(255) NOT NULL UNIQUE,
+  password VARCHAR(255) NOT NULL
+);
+
+-- Insert a sample user
+INSERT INTO users (email, password)
+VALUES ("saiful@gmail.com", "1234");;
+
+
+SELECT * from users
+
+
 -- Insert room types
 INSERT INTO room_types (name) VALUES ('Classroom'), ('Seminar Hall'), ('Conference Room'), ('Lab Room');
 
