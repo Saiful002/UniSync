@@ -4,6 +4,8 @@ const mysql = require('mysql2/promise');
 const jwt = require("jsonwebtoken");
 const cors = require('cors');
 const app = express();
+const cookie = require("cookie");
+
 
 app.use(cors());
 app.use(express.json());
@@ -111,19 +113,28 @@ app.post("/api/login", async (req, res) => {
     }
 
     const user = rows[0];
-
-    // Generate JWT Token
     const token = jwt.sign({ id: user.id, email: user.email }, SECRET_KEY, {
       expiresIn: "2h",
     });
 
-    res.json({ message: "Login successful", token });
+    // Set cookie with token
+    res.setHeader(
+      "Set-Cookie",
+      cookie.serialize("token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 2 * 60 * 60,
+        path: "/",
+      })
+    );
+
+    res.json({ message: "Login successful" });
   } catch (err) {
     console.error("Login error:", err);
     res.status(500).json({ message: "Server error during login" });
   }
 });
-
 
 
 

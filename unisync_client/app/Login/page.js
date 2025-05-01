@@ -9,6 +9,7 @@ export default function Login() {
   const [message, setMessage] = useState("");
 
   const router = useRouter();
+
   const handleLogin = async (e) => {
     e.preventDefault();
 
@@ -16,17 +17,15 @@ export default function Login() {
       const res = await fetch("http://localhost:5000/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include", // Important! Enables sending/receiving cookies
         body: JSON.stringify({ email, password }),
       });
 
       const data = await res.json();
 
       if (res.ok) {
-        localStorage.setItem("token", data.token); // Store JWT Token 🔥
         setMessage("Login Successful!");
-
-        // Optional: redirect user to dashboard
-        router.push("/");
+        router.push("/"); // Redirect after login
       } else {
         setMessage(data.message);
       }
@@ -37,7 +36,7 @@ export default function Login() {
   };
 
   return (
-    <div className="max-w-md mx-auto mt-10 p-6  shadow-md rounded">
+    <div className="max-w-md mx-auto mt-10 p-6 shadow-md rounded">
       <h2 className="text-2xl font-bold mb-6 text-center">Login</h2>
       <form onSubmit={handleLogin} className="space-y-5">
         <div>
