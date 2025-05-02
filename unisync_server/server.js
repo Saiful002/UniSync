@@ -1,13 +1,19 @@
 // Express.js backend (app.js or routes/rooms.js)
+
 const express = require('express');
 const mysql = require('mysql2/promise');
 const jwt = require("jsonwebtoken");
 const cors = require('cors');
 const app = express();
 const cookie = require("cookie");
+const dotenv=require("dotenv")
+dotenv.config();
 
 
-app.use(cors());
+app.use(cors({
+  origin: "http://localhost:3000", // or "*", if testing
+  credentials: true,
+}));
 app.use(express.json());
 
 const db = mysql.createPool({
@@ -17,7 +23,7 @@ const db = mysql.createPool({
   database: "unisync",
 });
 
-const SECRET_KEY = "your_secret_key_here"; // Keep it secure in production
+const SECRET_KEY = process.env.SECRET_KEY; // Keep it secure in production
 
 // GET room types
 app.post("/api/available-rooms", async (req, res) => {

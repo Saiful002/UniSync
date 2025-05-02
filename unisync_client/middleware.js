@@ -19,7 +19,7 @@ export async function middleware(req) {
 
   try {
     // Verify token (replace with your actual secret)
-    const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+    const secret = new TextEncoder().encode(process.env.SECRET_KEY);
     await jwtVerify(token, secret);
     return NextResponse.next();
   } catch (err) {

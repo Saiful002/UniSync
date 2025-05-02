@@ -23,6 +23,9 @@ export default function Login() {
 
       const data = await res.json();
 
+      console.log("Response status:", res.status);
+console.log("Response data:", data);
+
       if (res.ok) {
         setMessage("Login Successful!");
         router.push("/"); // Redirect after login
