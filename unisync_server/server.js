@@ -7,9 +7,11 @@ const cors = require('cors');
 const app = express();
 const cookie = require("cookie");
 const dotenv=require("dotenv")
+const cookieParser=require("cookie-parser"); // if using ES modules
+
+
+app.use(cookieParser());
 dotenv.config();
-
-
 app.use(cors({
   origin: "http://localhost:3000", // or "*", if testing
   credentials: true,
@@ -141,6 +143,34 @@ app.post("/api/login", async (req, res) => {
     res.status(500).json({ message: "Server error during login" });
   }
 });
+
+
+app.post("/api/request-room", async (req, res) => {
+  const token = req.cookies.token; // ✅ Get token from cookies
+
+  if (!token) {
+    return res.status(401).json({ message: "Unauthorized - No token" });
+  }
+
+  try {
+    const decoded = jwt.verify(token, SECRET_KEY);
+    const email = decoded.email;
+    const { roomId, selectedDate, startTime, endTime } = req.body;
+    console.log(req.body)
+
+    await db.query(
+      `INSERT INTO room_request (user_email, room_id, selected_date, start_time, end_time)
+       VALUES (?, ?, ?, ?, ?)`,
+      [email, roomId, selectedDate, startTime, endTime]
+    );
+
+    res.json({ message: "Room requested successfully" });
+  } catch (error) {
+    console.error("Room request error:", error);
+    res.status(401).json({ message: "Unauthorized - Invalid token" });
+  }
+});
+
 
 
 

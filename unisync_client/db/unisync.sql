@@ -43,6 +43,20 @@ CREATE TABLE users (
   password VARCHAR(255) NOT NULL
 );
 
+CREATE TABLE room_request (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_email VARCHAR(255),
+  room_id INT,
+  selected_date DATE,
+  start_time VARCHAR(10),
+  end_time VARCHAR(10)
+);
+
+
+select * from room_request
+
+drop Table room_request
+
 -- Insert a sample user
 INSERT INTO users (email, password)
 VALUES ("saiful@gmail.com", "1234");;

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 
-const PUBLIC_ROUTES = ["/Login", "/register"];
+const PUBLIC_ROUTES = ["/Login"];
 
 export async function middleware(req) {
   const { pathname } = req.nextUrl;
@@ -12,6 +12,7 @@ export async function middleware(req) {
   }
 
   const token = req.cookies.get("token")?.value;
+  console.log(token)
 
   if (!token) {
     return NextResponse.redirect(new URL("/Login", req.url));
