@@ -23,7 +23,9 @@ export default function RoomDetailsPage({ params }) {
         body: JSON.stringify({
           roomId: room.id,
           roomName: room.name,
-          endingTime: selectedTime,
+          selectedDate:selectedDate,
+          startTime:selectedTime,
+          endingTime: endingTime,
         }),
       });
   

@@ -155,13 +155,13 @@ app.post("/api/request-room", async (req, res) => {
   try {
     const decoded = jwt.verify(token, SECRET_KEY);
     const email = decoded.email;
-    const { roomId, selectedDate, startTime, endTime } = req.body;
-    console.log(req.body)
+    const { roomId, selectedDate, startTime, endingTime } = req.body;
+
 
     await db.query(
       `INSERT INTO room_request (user_email, room_id, selected_date, start_time, end_time)
        VALUES (?, ?, ?, ?, ?)`,
-      [email, roomId, selectedDate, startTime, endTime]
+      [email, roomId, selectedDate, startTime, endingTime]
     );
 
     res.json({ message: "Room requested successfully" });
