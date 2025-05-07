@@ -319,6 +319,33 @@ app.get("/api/my-bookings", async (req, res) => {
 
 
 
+app.delete("/api/room-requests/:id", async (req, res) => {
+  const token = req.cookies.token;
+
+  if (!token) return res.status(401).json({ message: "Unauthorized - No token" });
+
+  try {
+    const decoded = jwt.verify(token, SECRET_KEY);
+
+    // Optional: check if the request belongs to the user (security)
+    const [rows] = await db.query(`SELECT * FROM room_request WHERE id = ?`, [req.params.id]);
+    const request = rows[0];
+
+    if (!request) return res.status(404).json({ message: "Request not found" });
+
+    // Optional ownership check (if table has user_email or user_id)
+    // if (request.user_email !== decoded.email) return res.status(403).json({ message: "Forbidden" });
+
+    await db.query(`DELETE FROM room_request WHERE id = ?`, [req.params.id]);
+
+    return res.json({ message: "Room request cancelled" });
+  } catch (error) {
+    console.error("Cancel error:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+
 
 
 app.listen(5000, () => console.log("Server running on http://localhost:5000"));

@@ -1,13 +1,12 @@
 "use client"
 import { useState } from "react";
-import useSWR from "swr";
+import useSWR, { mutate } from "swr";
 
 const fetcher = (url) => fetch(url, { credentials: "include" }).then(res => res.json());
 
 const statusStyles = {
   Approved: 'bg-green-100 text-green-700',
-  Pending: 'bg-yellow-100 text-yellow-700',
-  Rejected: 'bg-red-100 text-red-700',
+  Pending: 'bg-yellow-100 text-yellow-700'
 };
 
 const MyBookings = () => {
@@ -35,7 +34,7 @@ const MyBookings = () => {
         />
 
         <div className="flex gap-2 flex-wrap">
-          {['All', 'Approved', 'Pending', 'Rejected'].map(status => (
+          {['All', 'Approved', 'Pending'].map(status => (
             <button
               key={status}
               className={`px-4 py-1 rounded-full text-sm border transition ${
@@ -63,9 +62,27 @@ const MyBookings = () => {
             <div className="flex items-center gap-4">
               <span className={`text-sm font-medium px-3 py-1 rounded-full ${statusStyles[status]}`}>{status}</span>
               {status === 'Pending' && (
-                <button className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded-md text-sm">
-                  Cancel
-                </button>
+                <button
+                className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded-md text-sm"
+                onClick={async () => {
+                  const confirmed = confirm("Are you sure you want to cancel this request?");
+                  if (!confirmed) return;
+              
+                  const res = await fetch(`http://localhost:5000/api/room-requests/${id}`, {
+                    method: "DELETE",
+                    credentials: "include",
+                  });
+              
+                  if (res.ok) {
+                    mutate("http://localhost:5000/api/my-bookings"); // Refresh data
+                  } else {
+                    alert("Failed to cancel request.");
+                  }
+                }}
+              >
+                Cancel
+              </button>
+              
               )}
             </div>
           </div>
