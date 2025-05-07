@@ -211,6 +211,7 @@ app.post("/api/room-requests/:id/:decision", async (req, res) => {
 
   try {
     const decoded = jwt.verify(token, SECRET_KEY);
+    const userEmail = decoded.email;
 
     if (decision === "accept") {
       // Fetch the room request first
@@ -225,11 +226,11 @@ app.post("/api/room-requests/:id/:decision", async (req, res) => {
 
       const request = requestRows[0];
 
-      // Insert into bookings
+      // Insert into bookings with user email
       await db.query(
-        `INSERT INTO bookings (room_id, booking_date, start_time, end_time)
-         VALUES (?, ?, ?, ?)`,
-        [request.room_id, request.selected_date, request.start_time, request.end_time]
+        `INSERT INTO bookings (room_id, booking_date, start_time, end_time, user_email)
+         VALUES (?, ?, ?, ?, ?)`,
+        [request.room_id, request.selected_date, request.start_time, request.end_time, request.user_email]
       );
 
       // Delete the request after approving
@@ -248,6 +249,75 @@ app.post("/api/room-requests/:id/:decision", async (req, res) => {
     return res.status(500).json({ message: "Failed to process request" });
   }
 });
+
+
+
+
+// GET /api/my-bookings
+app.get("/api/my-bookings", async (req, res) => {
+  const token = req.cookies.token;
+  if (!token) return res.status(401).json({ message: "Unauthorized" });
+
+  try {
+    const decoded = jwt.verify(token, SECRET_KEY);
+    const email = decoded.email;
+
+    // 1. Fetch all room requests by user
+    const [roomRequests] = await db.query(
+      `SELECT rr.id, rr.room_id, r.name AS room, rr.selected_date AS date, rr.start_time, rr.end_time
+       FROM room_request rr
+       JOIN rooms r ON rr.room_id = r.id
+       WHERE rr.user_email = ?`,
+      [email]
+    );
+
+    // 2. Fetch all bookings by user
+    const [bookings] = await db.query(
+      `SELECT b.room_id, r.name AS room, b.booking_date AS date, b.start_time, b.end_time
+       FROM bookings b
+       JOIN rooms r ON b.room_id = r.id
+       WHERE b.user_email = ?`,
+      [email]
+    );
+
+    // 3. Format Approved bookings
+    const approved = bookings.map((b, i) => ({
+      id: `booking-${i}`,
+      room: b.room,
+      date: b.date,
+      time: `${b.start_time} - ${b.end_time}`,
+      status: "Approved",
+    }));
+
+    // 4. Filter room requests that aren't approved → Pending
+    const pending = roomRequests
+      .filter((req) => {
+        return !bookings.some(
+          (b) =>
+            b.room_id === req.room_id &&
+            b.date.toISOString().slice(0, 10) === req.date.toISOString().slice(0, 10) &&
+            b.start_time === req.start_time &&
+            b.end_time === req.end_time
+        );
+      })
+      .map((req) => ({
+        id: req.id,
+        room: req.room,
+        date: req.date,
+        time: `${req.start_time} - ${req.end_time}`,
+        status: "Pending",
+      }));
+
+    // 5. Combine and send response
+    const result = [...approved, ...pending];
+    res.json(result);
+  } catch (err) {
+    console.error("Error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+
 
 
 

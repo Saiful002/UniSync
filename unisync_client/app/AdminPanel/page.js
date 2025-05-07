@@ -34,7 +34,6 @@ const handleDecision = async (id, decision) => {
     mutate(); // revalidate SWR data
   } catch (err) {
     console.error(err);
-    alert("Failed to update request");
   }
 };
 

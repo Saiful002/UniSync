@@ -37,6 +37,11 @@ CREATE TABLE IF NOT EXISTS bookings (
   FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
 );
 
+ALTER TABLE bookings ADD COLUMN user_email VARCHAR(255);
+
+
+
+
 CREATE TABLE users (
   id INT AUTO_INCREMENT PRIMARY KEY,
   email VARCHAR(255) NOT NULL UNIQUE,
@@ -63,7 +68,7 @@ JOIN rooms r ON rr.room_id = r.id;
 
 -- Insert a sample user
 INSERT INTO users (email, password)
-VALUES ("saiful@gmail.com", "1234");;
+VALUES ("saiful@gmail.com", "1234");
 
 
 SELECT * from users
@@ -100,3 +105,5 @@ VALUES
 
 
 SELECT * from bookings
+
+drop table bookings

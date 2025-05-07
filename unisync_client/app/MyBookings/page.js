@@ -1,43 +1,21 @@
-// MyBookings.js
-"use client";
+"use client"
+import { useState } from "react";
+import useSWR from "swr";
 
-import React, { useState } from 'react';
-
-const bookingsData = [
-  {
-    id: 1,
-    room: 'Room E-101',
-    date: '2025-04-20',
-    time: '10:00 AM - 12:00 PM',
-    status: 'Approved'
-  },
-  {
-    id: 2,
-    room: 'Room G-102',
-    date: '2025-04-22',
-    time: '01:00 PM - 03:00 PM',
-    status: 'Pending'
-  },
-  {
-    id: 3,
-    room: 'Room K-108',
-    date: '2025-04-25',
-    time: '09:00 AM - 11:00 AM',
-    status: 'Rejected'
-  },
-];
+const fetcher = (url) => fetch(url, { credentials: "include" }).then(res => res.json());
 
 const statusStyles = {
   Approved: 'bg-green-100 text-green-700',
   Pending: 'bg-yellow-100 text-yellow-700',
-  Rejected: 'bg-red-100 text-red-700'
+  Rejected: 'bg-red-100 text-red-700',
 };
 
 const MyBookings = () => {
-  const [filter, setFilter] = useState('All');
-  const [search, setSearch] = useState('');
+  const { data: bookingsData, error } = useSWR("http://localhost:5000/api/my-bookings", fetcher);
+  const [filter, setFilter] = useState("All");
+  const [search, setSearch] = useState("");
 
-  const filteredBookings = bookingsData.filter(booking => {
+  const filteredBookings = (bookingsData || []).filter(booking => {
     const matchesStatus = filter === 'All' || booking.status === filter;
     const matchesSearch = booking.room.toLowerCase().includes(search.toLowerCase()) || booking.date.includes(search);
     return matchesStatus && matchesSearch;
@@ -72,14 +50,14 @@ const MyBookings = () => {
       </div>
 
       <div className="space-y-4">
-        {filteredBookings.map(({ id, room, date, time, status }) => (
+        {filteredBookings.map(({ id, room, date, start_time, end_time, status }) => (
           <div
             key={id}
             className="border border-gray-200 rounded-lg p-4 flex justify-between items-center flex-col md:flex-row gap-4 bg-[#FFFFFF20] transition-transform duration-200 hover:scale-[1.01]"
           >
             <div>
               <h3 className="font-semibold text-lg">{room}</h3>
-              <p className="text-sm">{date} | {time}</p>
+              <p className="text-sm">{date} | {start_time} - {end_time}</p>
             </div>
 
             <div className="flex items-center gap-4">
@@ -93,9 +71,12 @@ const MyBookings = () => {
           </div>
         ))}
 
-        {filteredBookings.length === 0 && (
+        {bookingsData && filteredBookings.length === 0 && (
           <p className="text-center text-gray-500">No bookings found.</p>
         )}
+
+        {!bookingsData && !error && <p className="text-center text-gray-400">Loading...</p>}
+        {error && <p className="text-center text-red-500">Failed to load bookings.</p>}
       </div>
     </div>
   );
