@@ -99,4 +99,4 @@ VALUES
   (3, '2025-04-21', '13:00', '15:00');
 
 
-drop Table bookings
+SELECT * from bookings

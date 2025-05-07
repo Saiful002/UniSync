@@ -200,5 +200,55 @@ app.get("/api/room-requests", async (req, res) => {
 
 
 
+app.post("/api/room-requests/:id/:decision", async (req, res) => {
+  const token = req.cookies.token;
+
+  if (!token) {
+    return res.status(401).json({ message: "Unauthorized - No token" });
+  }
+
+  const { id, decision } = req.params;
+
+  try {
+    const decoded = jwt.verify(token, SECRET_KEY);
+
+    if (decision === "accept") {
+      // Fetch the room request first
+      const [requestRows] = await db.query(
+        `SELECT * FROM room_request WHERE id = ?`,
+        [id]
+      );
+
+      if (requestRows.length === 0) {
+        return res.status(404).json({ message: "Request not found" });
+      }
+
+      const request = requestRows[0];
+
+      // Insert into bookings
+      await db.query(
+        `INSERT INTO bookings (room_id, booking_date, start_time, end_time)
+         VALUES (?, ?, ?, ?)`,
+        [request.room_id, request.selected_date, request.start_time, request.end_time]
+      );
+
+      // Delete the request after approving
+      await db.query(`DELETE FROM room_request WHERE id = ?`, [id]);
+
+      return res.json({ message: "Request accepted and room booked" });
+    } else if (decision === "reject") {
+      // Just delete the request
+      await db.query(`DELETE FROM room_request WHERE id = ?`, [id]);
+      return res.json({ message: "Request rejected" });
+    } else {
+      return res.status(400).json({ message: "Invalid decision" });
+    }
+  } catch (error) {
+    console.error("Decision error:", error);
+    return res.status(500).json({ message: "Failed to process request" });
+  }
+});
+
+
 
 app.listen(5000, () => console.log("Server running on http://localhost:5000"));

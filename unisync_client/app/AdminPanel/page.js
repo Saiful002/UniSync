@@ -21,20 +21,23 @@ const AdminPanel = () => {
 const { data: requests, error, isLoading } = useSWR("/api/room-requests", fetcher);
 
 console.log(requests)
-  const handleDecision = async (id, decision) => {
-    try {
-      const res = await fetch(`http://localhost:5000/api/room-requests/${id}/${decision}`, {
-        method: "POST",
-        credentials: "include",
-      });
-      const result = await res.json();
-      alert(result.message);
-      mutate();
-    } catch (err) {
-      console.error(err);
-      alert("Failed to update request");
-    }
-  };
+
+
+const handleDecision = async (id, decision) => {
+  try {
+    const res = await fetch(`http://localhost:5000/api/room-requests/${id}/${decision}`, {
+      method: "POST",
+      credentials: "include",
+    });
+    const result = await res.json();
+    alert(result.message);
+    mutate(); // revalidate SWR data
+  } catch (err) {
+    console.error(err);
+    alert("Failed to update request");
+  }
+};
+
 
   const renderTabContent = () => {
     switch (activeTab) {
