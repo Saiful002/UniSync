@@ -318,7 +318,7 @@ app.get("/api/my-bookings", async (req, res) => {
 });
 
 
-
+// Cancel Request Functionality
 app.delete("/api/room-requests/:id", async (req, res) => {
   const token = req.cookies.token;
 
@@ -342,6 +342,74 @@ app.delete("/api/room-requests/:id", async (req, res) => {
   } catch (error) {
     console.error("Cancel error:", error);
     return res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+
+// GET all rooms
+app.get("/api/rooms", async (req, res) => {
+  const [rows] = await db.query("SELECT * FROM rooms");
+  res.json(rows);
+});
+
+// CREATE a room
+app.post("/api/rooms", async (req, res) => {
+  const { name, annex, type_id } = req.body;
+  await db.query("INSERT INTO rooms (name, annex, type_id) VALUES (?, ?, ?)", [name, annex, type_id || null]);
+  res.json({ message: "Room created" });
+});
+
+// UPDATE a room
+app.put("/api/rooms/:id", async (req, res) => {
+  const { name, annex, type_id } = req.body;
+  await db.query("UPDATE rooms SET name = ?, annex = ?, type_id = ? WHERE id = ?", [name, annex, type_id || null, req.params.id]);
+  res.json({ message: "Room updated" });
+});
+
+// DELETE a room
+app.delete("/api/rooms/:id", async (req, res) => {
+  await db.query("DELETE FROM rooms WHERE id = ?", [req.params.id]);
+  res.json({ message: "Room deleted" });
+});
+
+
+
+
+
+app.post("/api/users", async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    await db.query(
+      `INSERT INTO users (email, password) VALUES (?, ?)`,
+      [email, password]
+    );
+    res.json({ message: "User added successfully" });
+  } catch (error) {
+    console.error("Add user error:", error);
+    res.status(500).json({ message: "Failed to add user" });
+  }
+});
+
+
+
+
+app.get("/api/users", async (req, res) => {
+  try {
+    const [rows] = await db.query(`SELECT id, email FROM users`);
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch users" });
+  }
+});
+
+app.delete("/api/users/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    await db.query(`DELETE FROM users WHERE id = ?`, [id]);
+    res.json({ message: "User deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to delete user" });
   }
 });
 
