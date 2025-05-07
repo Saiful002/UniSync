@@ -173,5 +173,32 @@ app.post("/api/request-room", async (req, res) => {
 
 
 
+// Get all room requests (Admin only)
+app.get("/api/room-requests", async (req, res) => {
+  const token = req.cookies.token;
+
+  if (!token) {
+    return res.status(401).json({ message: "Unauthorized - No token" });
+  }
+
+  try {
+    const decoded = jwt.verify(token, SECRET_KEY);
+
+    const [requests] = await db.query(
+      `SELECT rr.id, rr.room_id, rr.selected_date, rr.start_time, rr.end_time, rr.user_email, r.name AS room_name
+       FROM room_request rr
+       JOIN rooms r ON rr.room_id = r.id
+       ORDER BY rr.selected_date DESC`
+    );
+
+    res.json(requests);
+  } catch (error) {
+    console.error("Error fetching room requests:", error);
+    res.status(500).json({ message: "Failed to fetch room requests" });
+  }
+});
+
+
+
 
 app.listen(5000, () => console.log("Server running on http://localhost:5000"));

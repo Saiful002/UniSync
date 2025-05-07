@@ -55,7 +55,11 @@ CREATE TABLE room_request (
 
 select * from room_request
 
-drop Table room_request
+SELECT rr.id, rr.user_email, rr.room_id, rr.selected_date, rr.start_time, rr.end_time, r.name AS room_name
+FROM room_request rr
+JOIN rooms r ON rr.room_id = r.id;
+
+
 
 -- Insert a sample user
 INSERT INTO users (email, password)
