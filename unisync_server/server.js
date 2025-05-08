@@ -4,10 +4,14 @@ const express = require('express');
 const mysql = require('mysql2/promise');
 const jwt = require("jsonwebtoken");
 const cors = require('cors');
+const router = express.Router();
 const app = express();
 const cookie = require("cookie");
 const dotenv=require("dotenv")
 const cookieParser=require("cookie-parser"); // if using ES modules
+const { OpenAI } = require("openai");
+require("dotenv").config();
+
 
 
 app.use(cookieParser());
@@ -18,12 +22,23 @@ app.use(cors({
 }));
 app.use(express.json());
 
+
+
+
+//Database Configuration
 const db = mysql.createPool({
   host: "localhost",
   user: "root",
   password: "1234", // your MySQL password
   database: "unisync",
 });
+
+//OpenAI Configuration
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY, // Ensure this is set in your .env
+});
+
+
 
 const SECRET_KEY = process.env.SECRET_KEY; // Keep it secure in production
 
@@ -412,6 +427,93 @@ app.delete("/api/users/:id", async (req, res) => {
     res.status(500).json({ message: "Failed to delete user" });
   }
 });
+
+
+
+// Helper: Extract intent and entities
+const extractIntent = (message) => {
+  const lower = message.toLowerCase();
+  if (lower.includes("available") || lower.includes("availability")) return "check_availability";
+  if (lower.includes("book") || lower.includes("reserve")) return "book_room";
+  return "unknown";
+};
+
+
+// POST /api/chat
+router.post("/api/chat", async (req, res) => {
+  const { message, user_email } = req.body;
+  console.log("Incoming message:", message);
+  if (!message || !user_email) return res.status(400).json({ error: "Message and user_email are required." });
+
+  const intent = extractIntent(message);
+
+  try {
+    if (intent === "check_availability") {
+      // Simple format: "Check availability of room 101 on 2025-05-10 from 10:00 to 12:00"
+      const regex = /room (\d+) on (\d{4}-\d{2}-\d{2}) from (\d{2}:\d{2}) to (\d{2}:\d{2})/i;
+      const match = message.match(regex);
+
+      if (!match) {
+        return res.json({ reply: "Please specify the room ID, date, and time range for availability check." });
+      }
+
+      const [, room_id, selected_date, start_time, end_time] = match;
+
+      const [conflict] = await db.query(
+        `SELECT * FROM room_request WHERE room_id = ? AND selected_date = ? 
+         AND ((start_time < ? AND end_time > ?) OR (start_time < ? AND end_time > ?))`,
+        [room_id, selected_date, end_time, end_time, start_time, start_time]
+      );
+
+      if (conflict.length > 0) {
+        return res.json({ reply: `Room ${room_id} is not available on ${selected_date} between ${start_time} and ${end_time}.` });
+      } else {
+        return res.json({ reply: `Room ${room_id} is available on ${selected_date} between ${start_time} and ${end_time}.` });
+      }
+    } else if (intent === "book_room") {
+      // Format: "Book room 101 on 2025-05-10 from 10:00 to 12:00"
+      const regex = /room (\d+) on (\d{4}-\d{2}-\d{2}) from (\d{2}:\d{2}) to (\d{2}:\d{2})/i;
+      const match = message.match(regex);
+
+      if (!match) {
+        return res.json({ reply: "Please specify the room ID, date, and time range for booking." });
+      }
+
+      const [, room_id, selected_date, start_time, end_time] = match;
+
+      const [conflict] = await db.query(
+        `SELECT * FROM room_request WHERE room_id = ? AND selected_date = ? 
+         AND ((start_time < ? AND end_time > ?) OR (start_time < ? AND end_time > ?))`,
+        [room_id, selected_date, end_time, end_time, start_time, start_time]
+      );
+
+      if (conflict.length > 0) {
+        return res.json({ reply: `Sorry, Room ${room_id} is already booked on ${selected_date} during that time.` });
+      } else {
+        await db.query(
+          `INSERT INTO room_request (user_email, room_id, selected_date, start_time, end_time)
+           VALUES (?, ?, ?, ?, ?)`,
+          [user_email, room_id, selected_date, start_time, end_time, "Pending"]
+        );
+        return res.json({ reply: `Booking request for Room ${room_id} on ${selected_date} from ${start_time} to ${end_time} has been submitted.` });
+      }
+    } else {
+      // Fallback to OpenAI if intent is unknown
+      const completion = await openai.createChatCompletion({
+        model: "gpt-3.5-turbo",
+        messages: [{ role: "user", content: message }],
+      });
+
+      const aiResponse = completion.data.choices[0].message.content;
+      return res.json({ reply: aiResponse });
+    }
+  } catch (error) {
+    console.error("Chat error:", error);
+    return res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+module.exports = router;
 
 
 
