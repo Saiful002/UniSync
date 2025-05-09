@@ -467,7 +467,7 @@ console.log(req.body)
 
   let user_email;
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.SECRET_KEY);
     user_email = decoded.email;
   } catch (err) {
     return res.status(403).json({ error: "Invalid token" });
@@ -517,12 +517,12 @@ console.log(req.body)
       }
     } else {
       // Fallback to GPT
-      const completion = await openai.createChatCompletion({
+      const completion = await openai.chat.completions.create({
         model: "gpt-3.5-turbo",
         messages: [{ role: "user", content: message }],
       });
 
-      const aiResponse = completion.data.choices[0].message.content;
+      const aiResponse = completion.choices[0].message.content;
       return res.json({ reply: aiResponse });
     }
   } catch (error) {
