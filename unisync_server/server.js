@@ -430,31 +430,41 @@ app.delete("/api/users/:id", async (req, res) => {
 
 
 
-// Helper: Extract intent and entities
+// Helper: Extract intent
 const extractIntent = (message) => {
   const lower = message.toLowerCase();
-  if (lower.includes("available") || lower.includes("availability")) return "check_availability";
+  if (lower.includes("availability") || lower.includes("available")) return "check_availability";
   if (lower.includes("book") || lower.includes("reserve")) return "book_room";
   return "unknown";
 };
 
+// POST /api/chat route
+app.post("/api/chat", async (req, res) => {
+  const { message } = req.body;
+console.log(message)
+  // Get token from cookie and verify
+  const token = req.cookies.token;
+  if (!token) return res.status(401).json({ error: "Unauthorized: No token found" });
 
-// POST /api/chat
-router.post("/api/chat", async (req, res) => {
-  const { message, user_email } = req.body;
-  console.log("Incoming message:", message);
-  if (!message || !user_email) return res.status(400).json({ error: "Message and user_email are required." });
+  let user_email;
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    user_email = decoded.email;
+  } catch (err) {
+    return res.status(403).json({ error: "Invalid token" });
+  }
+
+  if (!message) return res.status(400).json({ error: "Message is required." });
 
   const intent = extractIntent(message);
 
   try {
-    if (intent === "check_availability") {
-      // Simple format: "Check availability of room 101 on 2025-05-10 from 10:00 to 12:00"
+    if (intent === "check_availability" || intent === "book_room") {
       const regex = /room (\d+) on (\d{4}-\d{2}-\d{2}) from (\d{2}:\d{2}) to (\d{2}:\d{2})/i;
       const match = message.match(regex);
 
       if (!match) {
-        return res.json({ reply: "Please specify the room ID, date, and time range for availability check." });
+        return res.json({ reply: "Please specify the room ID, date, and time range properly." });
       }
 
       const [, room_id, selected_date, start_time, end_time] = match;
@@ -465,40 +475,29 @@ router.post("/api/chat", async (req, res) => {
         [room_id, selected_date, end_time, end_time, start_time, start_time]
       );
 
-      if (conflict.length > 0) {
-        return res.json({ reply: `Room ${room_id} is not available on ${selected_date} between ${start_time} and ${end_time}.` });
-      } else {
-        return res.json({ reply: `Room ${room_id} is available on ${selected_date} between ${start_time} and ${end_time}.` });
-      }
-    } else if (intent === "book_room") {
-      // Format: "Book room 101 on 2025-05-10 from 10:00 to 12:00"
-      const regex = /room (\d+) on (\d{4}-\d{2}-\d{2}) from (\d{2}:\d{2}) to (\d{2}:\d{2})/i;
-      const match = message.match(regex);
-
-      if (!match) {
-        return res.json({ reply: "Please specify the room ID, date, and time range for booking." });
+      if (intent === "check_availability") {
+        if (conflict.length > 0) {
+          return res.json({ reply: `Room ${room_id} is NOT available on ${selected_date} from ${start_time} to ${end_time}.` });
+        } else {
+          return res.json({ reply: `Room ${room_id} IS available on ${selected_date} from ${start_time} to ${end_time}.` });
+        }
       }
 
-      const [, room_id, selected_date, start_time, end_time] = match;
+      if (intent === "book_room") {
+        if (conflict.length > 0) {
+          return res.json({ reply: `Sorry, Room ${room_id} is already booked on ${selected_date} during that time.` });
+        }
 
-      const [conflict] = await db.query(
-        `SELECT * FROM room_request WHERE room_id = ? AND selected_date = ? 
-         AND ((start_time < ? AND end_time > ?) OR (start_time < ? AND end_time > ?))`,
-        [room_id, selected_date, end_time, end_time, start_time, start_time]
-      );
-
-      if (conflict.length > 0) {
-        return res.json({ reply: `Sorry, Room ${room_id} is already booked on ${selected_date} during that time.` });
-      } else {
         await db.query(
           `INSERT INTO room_request (user_email, room_id, selected_date, start_time, end_time)
            VALUES (?, ?, ?, ?, ?)`,
-          [user_email, room_id, selected_date, start_time, end_time, "Pending"]
+          [user_email, room_id, selected_date, start_time, end_time]
         );
-        return res.json({ reply: `Booking request for Room ${room_id} on ${selected_date} from ${start_time} to ${end_time} has been submitted.` });
+
+        return res.json({ reply: `✅ Booking request for Room ${room_id} on ${selected_date} from ${start_time} to ${end_time} has been submitted.` });
       }
     } else {
-      // Fallback to OpenAI if intent is unknown
+      // Fallback to GPT
       const completion = await openai.createChatCompletion({
         model: "gpt-3.5-turbo",
         messages: [{ role: "user", content: message }],
@@ -512,8 +511,6 @@ router.post("/api/chat", async (req, res) => {
     return res.status(500).json({ error: "Internal server error." });
   }
 });
-
-module.exports = router;
 
 
 
