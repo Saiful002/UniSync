@@ -159,6 +159,25 @@ app.post("/api/login", async (req, res) => {
   }
 });
 
+// API to get current logged-in user
+app.get("/api/me", (req, res) => {
+  try {
+    const cookies = cookie.parse(req.headers.cookie || "");
+    const token = cookies.token;
+
+    if (!token) {
+      return res.status(401).json({ message: "No token found" });
+    }
+
+    const decoded = jwt.verify(token, SECRET_KEY); // same secret as in login route
+    return res.json({ email: decoded.email, id: decoded.id });
+  } catch (err) {
+    console.error("Token verification error:", err);
+    return res.status(401).json({ message: "Invalid or expired token" });
+  }
+});
+
+
 
 app.post("/api/request-room", async (req, res) => {
   const token = req.cookies.token; // ✅ Get token from cookies
@@ -441,7 +460,7 @@ const extractIntent = (message) => {
 // POST /api/chat route
 app.post("/api/chat", async (req, res) => {
   const { message } = req.body;
-console.log(message)
+console.log(req.body)
   // Get token from cookie and verify
   const token = req.cookies.token;
   if (!token) return res.status(401).json({ error: "Unauthorized: No token found" });

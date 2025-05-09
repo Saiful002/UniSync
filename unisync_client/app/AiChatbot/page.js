@@ -1,15 +1,18 @@
 "use client"
 import { useState, useRef, useEffect } from "react";
+import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
 
-const fetcher = async ([url, body]) => {
+export const postFetcher = async (url, { arg }) => {
+  console.log("Request Body:", arg);
+
   const res = await fetch(`http://localhost:5000${url}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    credentials: "include", // includes cookies
-    body: JSON.stringify(body),
+    credentials: "include",
+    body: JSON.stringify(arg),
   });
 
   if (!res.ok) {
@@ -23,6 +26,21 @@ const fetcher = async ([url, body]) => {
 
 
 
+export const getFetcher = async (url) => {
+  const res = await fetch(`http://localhost:5000${url}`, {
+    credentials: "include",
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.error || "Failed to fetch");
+  }
+
+  return res.json();
+};
+
+
+
 export default function ChatBot() {
   const [messages, setMessages] = useState([
     { sender: "bot", text: "Hello! How can I assist you with room booking today?" },
@@ -31,35 +49,40 @@ export default function ChatBot() {
   const [typing, setTyping] = useState(false);
   const chatEndRef = useRef(null);
 
-  const { trigger, data, error, isMutating } = useSWRMutation('/api/chat', fetcher);
+  const { trigger, data, error, isMutating } = useSWRMutation('/api/chat', postFetcher);
+  const { data: user } = useSWR("/api/me", getFetcher);
+  // console.log(user)
+
   
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+ 
   }, [messages]);
 
   const sendMessage = async () => {
     if (!input.trim()) return;
-
+  
     const userMessage = { sender: "user", text: input };
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setTyping(true);
-
+  
     try {
-      const data = await trigger({ message: input });
+      const data = await trigger({ message: input, user_email: user.email });
       const botReply = { sender: "bot", text: data.reply };
       setMessages((prev) => [...prev, botReply]);
     } catch (error) {
+      console.error(error.message); // log error for debugging
       setMessages((prev) => [
         ...prev,
-        { sender: "bot", text: `❌ ${error.message}` },
+        { sender: "bot", text: `❌ ${error.message}` }
       ]);
     } finally {
       setTyping(false);
     }
   };
+  
 
   const handleKeyPress = (e) => {
     if (e.key === "Enter") sendMessage();
