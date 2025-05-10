@@ -449,19 +449,19 @@ app.delete("/api/users/:id", async (req, res) => {
 
 
 
-// Helper: Extract intent
-const extractIntent = (message) => {
+// Helper: Intent extractor
+function extractIntent(message) {
   const lower = message.toLowerCase();
-  if (lower.includes("availability") || lower.includes("available")) return "check_availability";
-  if (lower.includes("book") || lower.includes("reserve")) return "book_room";
+  if (lower.includes("check") && lower.includes("availability")) return "check_availability";
+  if (lower.includes("book") && lower.includes("room")) return "book_room";
   return "unknown";
-};
+}
 
 // POST /api/chat route
 app.post("/api/chat", async (req, res) => {
   const { message } = req.body;
-console.log(req.body)
-  // Get token from cookie and verify
+  console.log("Received:", message);
+
   const token = req.cookies.token;
   if (!token) return res.status(401).json({ error: "Unauthorized: No token found" });
 
@@ -483,10 +483,10 @@ console.log(req.body)
       const match = message.match(regex);
 
       if (!match) {
-        return res.json({ reply: "Please specify the room ID, date, and time range properly." });
+        return res.json({ reply: "❗ Please specify the room ID, date, and time range properly (e.g., room 101 on 2025-05-11 from 14:00 to 15:00)." });
       }
 
-      const [, room_id, selected_date, start_time, end_time] = match;
+      const [room_id, selected_date, start_time, end_time] = match;
 
       const [conflict] = await db.query(
         `SELECT * FROM room_request WHERE room_id = ? AND selected_date = ? 
@@ -496,15 +496,15 @@ console.log(req.body)
 
       if (intent === "check_availability") {
         if (conflict.length > 0) {
-          return res.json({ reply: `Room ${room_id} is NOT available on ${selected_date} from ${start_time} to ${end_time}.` });
+          return res.json({ reply: `❌ Room ${room_id} is NOT available on ${selected_date} from ${start_time} to ${end_time}.` });
         } else {
-          return res.json({ reply: `Room ${room_id} IS available on ${selected_date} from ${start_time} to ${end_time}.` });
+          return res.json({ reply: `✅ Room ${room_id} IS available on ${selected_date} from ${start_time} to ${end_time}.` });
         }
       }
 
       if (intent === "book_room") {
         if (conflict.length > 0) {
-          return res.json({ reply: `Sorry, Room ${room_id} is already booked on ${selected_date} during that time.` });
+          return res.json({ reply: `🚫 Room ${room_id} is already booked on ${selected_date} during that time.` });
         }
 
         await db.query(
@@ -516,14 +516,19 @@ console.log(req.body)
         return res.json({ reply: `✅ Booking request for Room ${room_id} on ${selected_date} from ${start_time} to ${end_time} has been submitted.` });
       }
     } else {
-      // Fallback to GPT
-      const completion = await openai.chat.completions.create({
-        model: "gpt-3.5-turbo",
-        messages: [{ role: "user", content: message }],
+      // 🔁 Fallback to Ollama
+      const ollamaRes = await fetch("http://localhost:11434/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "llama3", // change this to the model you're running, e.g., "mistral", "phi3"
+          prompt: message,
+          stream: false,
+        }),
       });
 
-      const aiResponse = completion.choices[0].message.content;
-      return res.json({ reply: aiResponse });
+      const data = await ollamaRes.json();
+      return res.json({ reply: data.response });
     }
   } catch (error) {
     console.error("Chat error:", error);
