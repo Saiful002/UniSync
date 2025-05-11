@@ -4,12 +4,11 @@ const express = require('express');
 const mysql = require('mysql2/promise');
 const jwt = require("jsonwebtoken");
 const cors = require('cors');
-const router = express.Router();
+const nodemailer = require('nodemailer');
 const app = express();
 const cookie = require("cookie");
 const dotenv=require("dotenv")
 const cookieParser=require("cookie-parser"); // if using ES modules
-const { OpenAI } = require("openai");
 require("dotenv").config();
 
 
@@ -24,6 +23,21 @@ app.use(express.json());
 
 
 
+// Environment variables
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+const SMTP_USER = process.env.SMTP_USER;
+const SMTP_PASS = process.env.SMTP_PASS;
+
+
+// Nodemailer transporter
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: SMTP_USER,
+    pass: SMTP_PASS,
+  },
+});
+
 
 //Database Configuration
 const db = mysql.createPool({
@@ -33,10 +47,7 @@ const db = mysql.createPool({
   database: "unisync",
 });
 
-//OpenAI Configuration
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY, // Ensure this is set in your .env
-});
+
 
 
 
@@ -546,6 +557,33 @@ if (intent === "check_availability") {
 });
 
 
+// POST endpoint to handle contact form submission
+app.post('/api/contact', async (req, res) => {
+  const { name, email, subject, message } = req.body;
+console.log(req.body)
+  if (!subject || !message) {
+    return res.status(400).json({ error: 'Subject and message are required' });
+  }
+
+  try {
+    await transporter.sendMail({
+      from: `"${name}" <${email}>`,
+      to: ADMIN_EMAIL,
+      subject: `[Contact Form] ${subject}`,
+      text: message,
+      html: `
+        <p><strong>From:</strong> ${name} (${email})</p>
+        <p><strong>Message:</strong></p>
+        <p>${message}</p>
+      `,
+    });
+
+    res.status(200).json({ message: 'Email sent successfully' });
+  } catch (err) {
+    console.error('Error sending email:', err);
+    res.status(500).json({ error: 'Failed to send email' });
+  }
+});
 
 
 app.listen(5000, () => console.log("Server running on http://localhost:5000"));

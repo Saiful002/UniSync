@@ -1,59 +1,53 @@
-// components/ContactAdmin.js
 "use client";
 
 import React, { useState } from 'react';
 
-const MAX_FILE_SIZE_MB = 2;
-const ALLOWED_FILE_TYPES = ['application/pdf', 'image/png', 'image/jpeg'];
-
-const ContactAdmin = ({ user = { name: 'Saiful Kabir Chowdhury', email: 'saiful@example.com' } }) => {
+const ContactAdmin = () => {
   const [form, setForm] = useState({
-    name: user.name,
-    email: user.email,
+    name: '',
+    email: '',
     subject: '',
     message: '',
-    file: null,
   });
   const [toast, setToast] = useState('');
   const [errors, setErrors] = useState({});
 
   const handleChange = (e) => {
-    const { name, value, files } = e.target;
-    if (name === 'file') {
-      const file = files[0];
-      if (file && !ALLOWED_FILE_TYPES.includes(file.type)) {
-        setErrors((prev) => ({ ...prev, file: 'Invalid file type' }));
-        return;
-      }
-      if (file && file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
-        setErrors((prev) => ({ ...prev, file: 'File too large (max 2MB)' }));
-        return;
-      }
-      setErrors((prev) => ({ ...prev, file: null }));
-      setForm({ ...form, file });
-    } else {
-      setForm({ ...form, [name]: value });
-    }
+    const { name, value } = e.target;
+    setForm({ ...form, [name]: value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const newErrors = {};
+    if (!form.name) newErrors.name = 'Name is required';
+    if (!form.email) newErrors.email = 'Email is required';
     if (!form.subject) newErrors.subject = 'Subject is required';
     if (!form.message) newErrors.message = 'Message is required';
+
     if (Object.keys(newErrors).length > 0) return setErrors(newErrors);
-
     setErrors({});
-    setToast('✅ Message sent successfully');
-    setTimeout(() => setToast(''), 3000);
 
-    // send form to backend (email & db logic to be implemented)
-    console.log('Send:', form);
-  };
+    try {
+      const res = await fetch('http://localhost:5000/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      console.log(form)
 
-  const resetForm = () => {
-    setForm({ name: user.name, email: user.email, subject: '', message: '', file: null });
-    setErrors({});
+      if (res.ok) {
+        setToast('✅ Message sent successfully');
+        setForm({ name: '', email: '', subject: '', message: '' });
+        setTimeout(() => setToast(''), 3000);
+      } else {
+        setToast('❌ Failed to send message');
+        setTimeout(() => setToast(''), 3000);
+      }
+    } catch (error) {
+      setToast('❌ Error sending message');
+      setTimeout(() => setToast(''), 3000);
+    }
   };
 
   return (
@@ -65,9 +59,10 @@ const ContactAdmin = ({ user = { name: 'Saiful Kabir Chowdhury', email: 'saiful@
           <input
             name="name"
             value={form.name}
-            readOnly
+            onChange={handleChange}
             className="w-full p-2 border rounded"
           />
+          {errors.name && <p className="text-red-500 text-sm">{errors.name}</p>}
         </div>
 
         <div>
@@ -78,6 +73,7 @@ const ContactAdmin = ({ user = { name: 'Saiful Kabir Chowdhury', email: 'saiful@
             onChange={handleChange}
             className="w-full p-2 border rounded"
           />
+          {errors.email && <p className="text-red-500 text-sm">{errors.email}</p>}
         </div>
 
         <div>
@@ -103,31 +99,12 @@ const ContactAdmin = ({ user = { name: 'Saiful Kabir Chowdhury', email: 'saiful@
           {errors.message && <p className="text-red-500 text-sm">{errors.message}</p>}
         </div>
 
-        <div>
-          <label className="block font-medium">📎 Attachment (PDF, PNG, JPG)</label>
-          <input
-            type="file"
-            name="file"
-            accept=".pdf,.png,.jpg,.jpeg"
-            onChange={handleChange}
-            className="block"
-          />
-          {errors.file && <p className="text-red-500 text-sm">{errors.file}</p>}
-        </div>
-
         <div className="flex justify-between items-center">
           <button
             type="submit"
             className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
           >
             📤 Send Message
-          </button>
-          <button
-            type="button"
-            className="text-sm text-gray-600 hover:underline"
-            onClick={resetForm}
-          >
-            🔄 Clear Form
           </button>
         </div>
 
