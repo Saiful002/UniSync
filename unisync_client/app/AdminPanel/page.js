@@ -210,7 +210,7 @@ const AdminPanel = () => {
                 </button>
               </form>
         
-              <div className="bg-black">
+              <div className="bg-black p-16">
                 <h3 className="font-semibold text-md mb-2 ">Existing Users</h3>
                 <ul className="space-y-2 bg-black">
                   {(users || []).map((user) => (
@@ -250,10 +250,10 @@ const AdminPanel = () => {
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
             className={`flex items-center gap-2 px-3 py-2 w-full rounded-md text-left hover:bg-green-100 transition ${
-              activeTab === tab.key ? "bg-green-200 text-green-800" : "text-gray-300"
+              activeTab === tab.key ? "bg-green-200 text-green-800" : "text-white"
             }`}
           >
-            <tab.icon className="w-5 h-5" /> {tab.name}
+            <tab.icon className="w-5 h-5 " /> {tab.name}
           </button>
         ))}
       </aside>

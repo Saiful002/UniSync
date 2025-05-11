@@ -2,10 +2,9 @@
 import { useState, useRef, useEffect } from "react";
 import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
+import { SendHorizonal, Bot, User } from "lucide-react"; // Icons from lucide-react
 
 export const postFetcher = async (url, { arg }) => {
-  console.log("Request Body:", arg);
-
   const res = await fetch(`http://localhost:5000${url}`, {
     method: "POST",
     headers: {
@@ -23,9 +22,6 @@ export const postFetcher = async (url, { arg }) => {
   return res.json();
 };
 
-
-
-
 export const getFetcher = async (url) => {
   const res = await fetch(`http://localhost:5000${url}`, {
     credentials: "include",
@@ -39,8 +35,6 @@ export const getFetcher = async (url) => {
   return res.json();
 };
 
-
-
 export default function ChatBot() {
   const [messages, setMessages] = useState([
     { sender: "bot", text: "Hello! How can I assist you with room booking today?" },
@@ -49,69 +43,72 @@ export default function ChatBot() {
   const [typing, setTyping] = useState(false);
   const chatEndRef = useRef(null);
 
-  const { trigger, data, error, isMutating } = useSWRMutation('/api/chat', postFetcher);
+  const { trigger } = useSWRMutation("/api/chat", postFetcher);
   const { data: user } = useSWR("/api/me", getFetcher);
-  // console.log(user)
-
-  
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
- 
   }, [messages]);
 
   const sendMessage = async () => {
     if (!input.trim()) return;
-  
+
     const userMessage = { sender: "user", text: input };
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setTyping(true);
-  
+
     try {
       const data = await trigger({ message: input, user_email: user.email });
       const botReply = { sender: "bot", text: data.reply };
       setMessages((prev) => [...prev, botReply]);
     } catch (error) {
-      console.error(error.message); // log error for debugging
       setMessages((prev) => [
         ...prev,
-        { sender: "bot", text: `❌ ${error.message}` }
+        { sender: "bot", text: `❌ ${error.message}` },
       ]);
     } finally {
       setTyping(false);
     }
   };
-  
 
   const handleKeyPress = (e) => {
     if (e.key === "Enter") sendMessage();
   };
 
   return (
-    <div className="max-w-md mx-auto p-4 border rounded-lg shadow">
-      <div className="h-96 overflow-y-auto space-y-2 mb-4 bg-gray-100 p-2 rounded">
+    <div className="max-w-md mx-auto mt-32 p-4 border rounded-2xl shadow-lg bg-[#FFFFFF20]">
+      <div className="h-96 overflow-y-auto space-y-4 mb-4 p-3 rounded-lg">
         {messages.map((msg, i) => (
-          <div key={i} className={`text-sm ${msg.sender === "user" ? "text-right" : "text-left"}`}>
-            <span className={`inline-block p-2 rounded ${msg.sender === "user" ? "bg-blue-200" : "bg-green-200"}`}>
-              {msg.text}
-            </span>
+          <div key={i} className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}>
+            <div className={`max-w-xs px-4 py-2 rounded-xl shadow-sm text-sm flex items-start gap-2
+              ${msg.sender === "user" ? "bg-blue-500 text-white" : "bg-green-100 text-gray-800"}`}>
+              {msg.sender === "bot" && <Bot className="w-4 h-4 mt-1 text-green-600" />}
+              {msg.sender === "user" && <User className="w-4 h-4 mt-1 text-white" />}
+              <span>{msg.text}</span>
+            </div>
           </div>
         ))}
-        {typing && <div className="text-gray-500">Bot is typing...</div>}
+        {typing && <div className="text-gray-400 text-sm">🤖 Bot is typing...</div>}
         <div ref={chatEndRef} />
       </div>
-      <input
-        type="text"
-        className="w-full border px-3 py-2 rounded"
-        value={input}
-        placeholder="Type your message..."
-        onChange={(e) => setInput(e.target.value)}
-        onKeyDown={handleKeyPress}
-      />
-      <button className="mt-2 w-full bg-blue-500 text-white p-2 rounded" onClick={sendMessage}>
-        Send
-      </button>
+
+      <div className="flex items-center gap-2">
+        <input
+          type="text"
+          className="flex-1 border border-gray-300 px-4 py-2 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400"
+          value={input}
+          placeholder="Type your message..."
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyPress}
+        />
+        <button
+          className="bg-blue-500 text-white p-2 rounded-full hover:bg-blue-600 transition"
+          onClick={sendMessage}
+        >
+          <SendHorizonal className="w-5 h-5" />
+        </button>
+      </div>
     </div>
   );
 }

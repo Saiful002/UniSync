@@ -486,21 +486,30 @@ app.post("/api/chat", async (req, res) => {
         return res.json({ reply: "❗ Please specify the room ID, date, and time range properly (e.g., room 101 on 2025-05-11 from 14:00 to 15:00)." });
       }
 
-      const [room_id, selected_date, start_time, end_time] = match;
+      const [, room_id, selected_date, start_time, end_time] = match;
 
-      const [conflict] = await db.query(
-        `SELECT * FROM room_request WHERE room_id = ? AND selected_date = ? 
-         AND ((start_time < ? AND end_time > ?) OR (start_time < ? AND end_time > ?))`,
-        [room_id, selected_date, end_time, end_time, start_time, start_time]
-      );
+   // Check conflict with correct overlap logic
+const [conflict] = await db.query(
+  `SELECT *
+   FROM room_request
+   WHERE room_id = ?
+   AND selected_date = ?
+   AND (? < end_time AND ? > start_time)`,
+  [room_id, selected_date, end_time, start_time]
+);
 
-      if (intent === "check_availability") {
-        if (conflict.length > 0) {
-          return res.json({ reply: `❌ Room ${room_id} is NOT available on ${selected_date} from ${start_time} to ${end_time}.` });
-        } else {
-          return res.json({ reply: `✅ Room ${room_id} IS available on ${selected_date} from ${start_time} to ${end_time}.` });
-        }
-      }
+if (intent === "check_availability") {
+  if (conflict.length > 0) {
+    return res.json({
+      reply: `❌ Room ${room_id} is NOT available on ${selected_date} from ${start_time} to ${end_time}.`
+    });
+  } else {
+    return res.json({
+      reply: `✅ Room ${room_id} IS available on ${selected_date} from ${start_time} to ${end_time}.`
+    });
+  }
+}
+
 
       if (intent === "book_room") {
         if (conflict.length > 0) {
