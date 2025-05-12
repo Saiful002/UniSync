@@ -586,4 +586,21 @@ console.log(req.body)
 });
 
 
+app.get('/room-stats', async (req, res) => {
+  try {
+    const [[{ totalRooms }]] = await db.query(`SELECT COUNT(*) AS totalRooms FROM rooms`);
+    const [[{ bookedRooms }]] = await db.query(
+      `SELECT COUNT(DISTINCT room_id) AS bookedRooms FROM bookings`
+    );
+
+    const availableRooms = totalRooms - bookedRooms;
+    res.json({ totalRooms, availableRooms });
+  } catch (err) {
+    console.error('Error fetching room stats:', err);
+    res.status(500).json({ error: 'Failed to fetch room statistics' });
+  }
+});
+
+
+
 app.listen(5000, () => console.log("Server running on http://localhost:5000"));

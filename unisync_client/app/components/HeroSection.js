@@ -7,37 +7,31 @@ import { format } from 'date-fns';
 
 const Calendar = dynamic(() => import('react-calendar'), { ssr: false });
 import 'react-calendar/dist/Calendar.css';
+import Link from 'next/link';
 
 export default function HeroSection() {
-  const [totalRooms, setTotalRooms] = useState(100);
-  const [availableRooms, setAvailableRooms] = useState(75);
+  const [totalRooms, setTotalRooms] = useState(0);
+  const [availableRooms, setAvailableRooms] = useState(0);
   const [date, setDate] = useState(new Date());
 
-  // Animated counting effect
-  const animateNumber = (target, setter) => {
-    let start = 0;
-    const duration = 1000;
-    const stepTime = 20;
-    const totalSteps = duration / stepTime;
-    const increment = target / totalSteps;
-
-    const interval = setInterval(() => {
-      start += increment;
-      setter(Math.floor(start));
-      if (start >= target) {
-        setter(target);
-        clearInterval(interval);
-      }
-    }, stepTime);
+  // Fetch total and available rooms from backend
+  const fetchRoomStats = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/room-stats');
+      const data = await res.json();
+      setTotalRooms(data.totalRooms);
+      setAvailableRooms(data.availableRooms);
+    } catch (error) {
+      console.error('Error fetching room stats:', error);
+    }
   };
 
   useEffect(() => {
-    animateNumber(100, setTotalRooms);
-    animateNumber(75, setAvailableRooms);
+    fetchRoomStats();
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-r from-black to-green-900 flex flex-col lg:flex-row items-center justify-evenly p-6 gap-10">
+    <div className="bg-gradient-to-r from-black to-green-900 flex flex-col lg:flex-row items-center justify-evenly p-6 gap-10">
       {/* Left Side Text Content */}
       <div className="text-white text-center lg:text-left max-w-md mt-24 sm:mt-0">
         <h1 className="text-4xl lg:text-5xl font-bold leading-tight">
@@ -46,9 +40,11 @@ export default function HeroSection() {
         <p className="mt-4 text-lg">
           In the digital realm of innovation and efficiency, our room booking system ensures seamless management.
         </p>
-        <button className="mt-6 bg-[#02B81C] hover:bg-green-600 hover:border-2 border-[#40FE5B] text-white font-bold py-2 px-6 rounded-lg">
-          BOOK NOW
-        </button>
+        <Link href={"/RoomBooking"}>
+          <button className="mt-6 bg-[#02B81C] hover:bg-green-600 hover:border-2 border-[#40FE5B] text-white font-bold py-2 px-6 rounded-lg">
+            BOOK NOW
+          </button>
+        </Link>
       </div>
 
       {/* Right Side - Room Stats & Calendar */}
@@ -59,11 +55,23 @@ export default function HeroSection() {
           <div className="flex justify-between text-lg font-semibold">
             <div>
               <span>Total Rooms</span>
-              <motion.span animate={{ opacity: [0, 1] }} transition={{ duration: 1 }} className="block text-2xl text-center items-center flex align-center justify-center border border-[#6ADB6A] w-20 h-20 rounded-full">{totalRooms}</motion.span>
+              <motion.span
+                animate={{ opacity: [0, 1] }}
+                transition={{ duration: 1 }}
+                className="block text-2xl text-center items-center flex align-center justify-center border border-[#6ADB6A] w-20 h-20 rounded-full"
+              >
+                {totalRooms}
+              </motion.span>
             </div>
             <div>
               <span>Available Rooms</span>
-              <motion.span animate={{ opacity: [0, 1] }} transition={{ duration: 1 }} className="block text-2xl text-center items-center flex align-center justify-center border border-[#6ADB6A] w-20 h-20 rounded-full">{availableRooms}</motion.span>
+              <motion.span
+                animate={{ opacity: [0, 1] }}
+                transition={{ duration: 1 }}
+                className="block text-2xl text-center items-center flex align-center justify-center border border-[#6ADB6A] w-20 h-20 rounded-full"
+              >
+                {availableRooms}
+              </motion.span>
             </div>
           </div>
         </div>
@@ -76,7 +84,9 @@ export default function HeroSection() {
             value={date} 
             className="bg-white text-black p-2 rounded-lg w-full"
           />
-          <p className="text-center mt-4 text-lg">Selected Date: {format(date, 'PPP')}</p>
+          <p className="text-center mt-4 text-lg">
+            Selected Date: {format(date, 'PPP')}
+          </p>
         </div>
       </div>
     </div>
