@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { motion } from "framer-motion";
+import emailjs from "@emailjs/browser";
 import { 
   User, 
   Mail, 
@@ -42,13 +43,38 @@ export default function ContactAdmin() {
     setIsSubmitting(true);
 
     try {
-      const res = await fetch("http://localhost:5000/api/contact", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
+      const serviceId = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID;
+      const templateId = process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID;
+      const publicKey = process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY;
 
-      if (res.ok) {
+      if (!serviceId || !templateId || !publicKey || serviceId === "your_service_id") {
+        setToast({
+          type: "error",
+          text: "EmailJS credentials are not configured yet! Please update NEXT_PUBLIC_EMAILJS_SERVICE_ID, NEXT_PUBLIC_EMAILJS_TEMPLATE_ID, and NEXT_PUBLIC_EMAILJS_PUBLIC_KEY in .env.local",
+        });
+        setTimeout(() => setToast(null), 6000);
+        setIsSubmitting(false);
+        return;
+      }
+
+      const templateParams = {
+        from_name: form.name,
+        name: form.name,
+        from_email: form.email,
+        email: form.email,
+        reply_to: form.email,
+        subject: form.subject,
+        message: form.message,
+      };
+
+      const res = await emailjs.send(
+        serviceId,
+        templateId,
+        templateParams,
+        publicKey
+      );
+
+      if (res.status === 200) {
         setToast({ type: "success", text: "Message submitted successfully! Admin will respond shortly." });
         setForm({ name: "", email: "", subject: "", message: "" });
         setTimeout(() => setToast(null), 4000);
@@ -57,8 +83,12 @@ export default function ContactAdmin() {
         setTimeout(() => setToast(null), 4000);
       }
     } catch (error) {
-      setToast({ type: "error", text: "Server error occurred while dispatching message." });
-      setTimeout(() => setToast(null), 4000);
+      console.error("EmailJS Error:", error);
+      setToast({
+        type: "error",
+        text: error?.text || "Failed to send message. Please verify your EmailJS credentials.",
+      });
+      setTimeout(() => setToast(null), 5000);
     } finally {
       setIsSubmitting(false);
     }
