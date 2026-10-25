@@ -17,6 +17,11 @@ const monoFont = JetBrains_Mono({
 export const metadata = {
   title: "UniSync - Modern Campus & Room Synchronization Platform",
   description: "Seamless university room booking, AI assistance, and academic scheduling.",
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({ children }) {
