@@ -6,8 +6,10 @@ import useSWRMutation from "swr/mutation";
 import { SendHorizonal, Bot, User, Sparkles, MessageCircleCode } from "lucide-react";
 import { motion } from "framer-motion";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://uni-sync-delta.vercel.app";
+
 export const postFetcher = async (url, { arg }) => {
-  const res = await fetch(`http://localhost:5000${url}`, {
+  const res = await fetch(`${API_URL}${url}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -25,7 +27,7 @@ export const postFetcher = async (url, { arg }) => {
 };
 
 export const getFetcher = async (url) => {
-  const res = await fetch(`http://localhost:5000${url}`, {
+  const res = await fetch(`${API_URL}${url}`, {
     credentials: "include",
   });
 

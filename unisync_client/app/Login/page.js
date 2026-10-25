@@ -18,6 +18,8 @@ import {
 import BrandLogo from "../components/BrandLogo";
 import LoginThreeBackground from "../components/LoginThreeBackground";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://uni-sync-delta.vercel.app";
+
 export default function Login() {
   const [role, setRole] = useState("user"); // 'user' or 'admin'
   const [email, setEmail] = useState("");
@@ -44,7 +46,7 @@ export default function Login() {
     setMessage("");
 
     try {
-      const res = await fetch("http://localhost:5000/api/login", {
+      const res = await fetch(`${API_URL}/api/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -81,7 +83,7 @@ export default function Login() {
     setForgotMsg(null);
 
     try {
-      const res = await fetch("http://localhost:5000/api/admin/forgot-password", {
+      const res = await fetch(`${API_URL}/api/admin/forgot-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: forgotEmail }),
@@ -114,7 +116,7 @@ export default function Login() {
     setForgotMsg(null);
 
     try {
-      const res = await fetch("http://localhost:5000/api/admin/reset-password", {
+      const res = await fetch(`${API_URL}/api/admin/reset-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: forgotEmail, newPassword: newPassword }),

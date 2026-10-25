@@ -19,8 +19,10 @@ import {
   Presentation
 } from "lucide-react";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://uni-sync-delta.vercel.app";
+
 const fetcher = (url, body) =>
-  fetch(`http://localhost:5000${url}`, {
+  fetch(`${API_URL}${url}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),

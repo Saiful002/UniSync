@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://uni-sync-delta.vercel.app";
+
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function RoomDetailsPage({ params }) {
@@ -34,7 +36,7 @@ export default function RoomDetailsPage({ params }) {
   }, []);
 
   const { data: room, error, isLoading } = useSWR(
-    `http://localhost:5000/api/RoomDetails/${id}`,
+    `${API_URL}/api/RoomDetails/${id}`,
     fetcher
   );
 
@@ -48,7 +50,7 @@ export default function RoomDetailsPage({ params }) {
     setToastMessage(null);
 
     try {
-      const res = await fetch("http://localhost:5000/api/request-room", {
+      const res = await fetch(`${API_URL}/api/request-room`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

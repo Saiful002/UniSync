@@ -15,6 +15,8 @@ import {
   BookmarkCheck
 } from "lucide-react";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://uni-sync-delta.vercel.app";
+
 const fetcher = (url) => fetch(url, { credentials: "include" }).then((res) => res.json());
 
 const statusBadges = {
@@ -33,7 +35,7 @@ const statusBadges = {
 };
 
 export default function MyBookings() {
-  const { data: bookingsData, error } = useSWR("http://localhost:5000/api/my-bookings", fetcher);
+  const { data: bookingsData, error } = useSWR(`${API_URL}/api/my-bookings`, fetcher);
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
 
@@ -50,13 +52,13 @@ export default function MyBookings() {
     if (!confirmed) return;
 
     try {
-      const res = await fetch(`http://localhost:5000/api/room-requests/${id}`, {
+      const res = await fetch(`${API_URL}/api/room-requests/${id}`, {
         method: "DELETE",
         credentials: "include",
       });
 
       if (res.ok) {
-        mutate("http://localhost:5000/api/my-bookings");
+        mutate(`${API_URL}/api/my-bookings`);
       } else {
         alert("Failed to cancel request.");
       }

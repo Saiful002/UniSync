@@ -16,11 +16,16 @@ import {
   Sparkles
 } from "lucide-react";
 
-const fetcher = (url) => fetch(url, { credentials: "include" }).then((res) => res.json());
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://uni-sync-delta.vercel.app";
+
+const fetcher = (url) =>
+  fetch(url.startsWith("http") ? url : `${API_URL}${url}`, {
+    credentials: "include",
+  }).then((res) => res.json());
 
 export default function ProfilePage() {
-  const { data: user, error, isLoading } = useSWR("/api/me", fetcher);
-  const { data: bookings } = useSWR("http://localhost:5000/api/my-bookings", fetcher);
+  const { data: user, error, isLoading } = useSWR(`${API_URL}/api/me`, fetcher);
+  const { data: bookings } = useSWR(`${API_URL}/api/my-bookings`, fetcher);
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -43,7 +48,7 @@ export default function ProfilePage() {
     setToast(null);
 
     try {
-      const res = await fetch("http://localhost:5000/api/user/change-password", {
+      const res = await fetch(`${API_URL}/api/user/change-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

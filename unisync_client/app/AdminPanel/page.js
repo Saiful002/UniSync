@@ -15,8 +15,10 @@ import {
 } from "@heroicons/react/24/outline";
 import { motion } from "framer-motion";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://uni-sync-delta.vercel.app";
+
 const fetcher = (url) =>
-  fetch(`http://localhost:5000${url}`, {
+  fetch(`${API_URL}${url}`, {
     credentials: "include",
   }).then((res) => res.json());
 
@@ -32,7 +34,7 @@ export default function AdminPanel() {
     if (!confirm("Are you sure you want to delete this user?")) return;
 
     try {
-      const res = await fetch(`http://localhost:5000/api/users/${id}`, {
+      const res = await fetch(`${API_URL}/api/users/${id}`, {
         method: "DELETE",
         credentials: "include",
       });
@@ -46,7 +48,7 @@ export default function AdminPanel() {
 
   const handleDecision = async (id, decision) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/room-requests/${id}/${decision}`, {
+      const res = await fetch(`${API_URL}/api/room-requests/${id}/${decision}`, {
         method: "POST",
         credentials: "include",
       });
@@ -59,7 +61,7 @@ export default function AdminPanel() {
   };
 
   const handleCreateRoom = async () => {
-    await fetch("http://localhost:5000/api/rooms", {
+    await fetch(`${API_URL}/api/rooms`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -70,7 +72,7 @@ export default function AdminPanel() {
   };
 
   const handleUpdateRoom = async () => {
-    await fetch(`http://localhost:5000/api/rooms/${editRoom.id}`, {
+    await fetch(`${API_URL}/api/rooms/${editRoom.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -81,7 +83,7 @@ export default function AdminPanel() {
   };
 
   const handleDeleteRoom = async (id) => {
-    await fetch(`http://localhost:5000/api/rooms/${id}`, { method: "DELETE", credentials: "include" });
+    await fetch(`${API_URL}/api/rooms/${id}`, { method: "DELETE", credentials: "include" });
     mutate("/api/rooms");
   };
 
@@ -274,7 +276,7 @@ export default function AdminPanel() {
                   const password = formData.get("password");
 
                   try {
-                    const res = await fetch("http://localhost:5000/api/users", {
+                    const res = await fetch(`${API_URL}/api/users`, {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({ email, password }),

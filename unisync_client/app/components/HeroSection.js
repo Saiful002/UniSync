@@ -26,7 +26,8 @@ export default function HeroSection() {
   // Fetch room statistics
   const fetchRoomStats = async () => {
     try {
-      const res = await fetch("http://localhost:5000/room-stats");
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://uni-sync-delta.vercel.app";
+      const res = await fetch(`${apiUrl}/room-stats`);
       if (res.ok) {
         const data = await res.json();
         setTotalRooms(data.totalRooms || 0);
