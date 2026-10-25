@@ -525,8 +525,12 @@ app.get('/room-stats', async (req, res) => {
 
 // app.listen(5000, () => console.log('Server running on http://localhost:5000'));
 
-const PORT = process.env.PORT || 5000;
+if (require.main === module) {
+  const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
+
+module.exports = app;
