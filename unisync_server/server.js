@@ -16,10 +16,22 @@ require('dotenv').config();
 
 app.use(cookieParser());
 dotenv.config();
+// app.use(cors({
+//   origin: 'http://localhost:3000',
+//   credentials: true,
+// }));
+
+
 app.use(cors({
-  origin: 'http://localhost:3000',
+  origin: process.env.CLIENT_URL || 'http://localhost:3000',
   credentials: true,
 }));
+
+
+
+
+
+
 app.use(express.json());
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
@@ -34,12 +46,49 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+// const db = mysql.createPool({
+//   host: 'localhost',
+//   user: 'root',
+//   password: '1234',
+//   database: 'unisync',
+// });
+
+
+
+
 const db = mysql.createPool({
-  host: 'localhost',
-  user: 'root',
-  password: '1234',
-  database: 'unisync',
+  host: process.env.DB_HOST,
+  port: Number(process.env.DB_PORT || 4000),
+  user: process.env.DB_USERNAME,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_DATABASE,
+  ssl: {
+    minVersion: 'TLSv1.2',
+  },
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
 });
+
+
+
+
+async function testDatabaseConnection() {
+  try {
+    const connection = await db.getConnection();
+    console.log('TiDB connected successfully');
+    connection.release();
+  } catch (error) {
+    console.error('Database connection failed:', error.message);
+  }
+}
+
+testDatabaseConnection();
+
+
+
+
+
 
 const SECRET_KEY = process.env.SECRET_KEY || 'unisync_secret_key_2026';
 
@@ -145,22 +194,22 @@ app.post('/api/login', async (req, res) => {
 
     // STRICT CHECK 1: Admin account attempting to log in via User Portal
     if (requestedRole === 'user' && dbRole === 'admin') {
-      return res.status(403).json({ 
-        message: 'This is an Administrator account. Please select the "Admin Portal" tab to log in.' 
+      return res.status(403).json({
+        message: 'This is an Administrator account. Please select the "Admin Portal" tab to log in.'
       });
     }
 
     // STRICT CHECK 2: Regular user attempting to log in via Admin Portal
     if (requestedRole === 'admin' && dbRole !== 'admin') {
-      return res.status(403).json({ 
-        message: 'Access Denied: Only Administrator accounts can log in via the Admin Portal.' 
+      return res.status(403).json({
+        message: 'Access Denied: Only Administrator accounts can log in via the Admin Portal.'
       });
     }
 
     // STRICT ROLE MATCH
     if (dbRole !== requestedRole) {
-      return res.status(403).json({ 
-        message: `Role mismatch. Your account is registered as ${dbRole.toUpperCase()}, but you selected ${requestedRole.toUpperCase()} PORTAL.` 
+      return res.status(403).json({
+        message: `Role mismatch. Your account is registered as ${dbRole.toUpperCase()}, but you selected ${requestedRole.toUpperCase()} PORTAL.`
       });
     }
 
@@ -170,16 +219,33 @@ app.post('/api/login', async (req, res) => {
       { expiresIn: '2h' }
     );
 
+    // res.setHeader(
+    //   'Set-Cookie',
+    //   cookie.serialize('token', token, {
+    //     httpOnly: true,
+    //     secure: process.env.NODE_ENV === 'production',
+    //     sameSite: 'lax',
+    //     maxAge: 2 * 60 * 60,
+    //     path: '/',
+    //   })
+    // );
+
+
+
     res.setHeader(
       'Set-Cookie',
       cookie.serialize('token', token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
         maxAge: 2 * 60 * 60,
         path: '/',
       })
     );
+
+
+
+
 
     res.json({ message: 'Login successful', role: dbRole });
   } catch (err) {
@@ -457,4 +523,10 @@ app.get('/room-stats', async (req, res) => {
   }
 });
 
-app.listen(5000, () => console.log('Server running on http://localhost:5000'));
+// app.listen(5000, () => console.log('Server running on http://localhost:5000'));
+
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
