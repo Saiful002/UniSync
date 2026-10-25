@@ -53,7 +53,6 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
 
 // Explicit fallback for preflight OPTIONS requests across all routes
 app.use((req, res, next) => {
