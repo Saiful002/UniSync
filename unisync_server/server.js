@@ -16,16 +16,62 @@ require('dotenv').config();
 
 app.use(cookieParser());
 dotenv.config();
-// app.use(cors({
-//   origin: 'http://localhost:3000',
-//   credentials: true,
-// }));
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://uni-sync-client-seven.vercel.app',
+];
 
+if (process.env.CLIENT_URL) {
+  process.env.CLIENT_URL.split(',').forEach((url) => {
+    const trimmed = url.trim();
+    if (trimmed && !allowedOrigins.includes(trimmed)) {
+      allowedOrigins.push(trimmed);
+    }
+  });
+}
 
-app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+const isOriginAllowed = (origin) => {
+  if (!origin) return true;
+  if (allowedOrigins.includes(origin)) return true;
+  if (origin.endsWith('.vercel.app')) return true;
+  if (origin.includes('localhost') || origin.includes('127.0.0.1')) return true;
+  return false;
+};
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    if (isOriginAllowed(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error(`Origin ${origin} not allowed by CORS`));
+  },
   credentials: true,
-}));
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'X-Requested-With'],
+  exposedHeaders: ['Set-Cookie'],
+  optionsSuccessStatus: 200,
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
+
+// Explicit fallback for preflight OPTIONS requests across all routes
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (isOriginAllowed(origin)) {
+    if (origin) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+    }
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,PATCH,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Cookie, X-Requested-With');
+  }
+
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
 
 
 
@@ -33,6 +79,22 @@ app.use(cors({
 
 
 app.use(express.json());
+
+const getToken = (req) => {
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+    return req.headers.authorization.split(' ')[1];
+  }
+  if (req.cookies && req.cookies.token) {
+    return req.cookies.token;
+  }
+  if (req.headers.cookie) {
+    try {
+      const parsed = cookie.parse(req.headers.cookie);
+      if (parsed.token) return parsed.token;
+    } catch (e) {}
+  }
+  return null;
+};
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 const SMTP_USER = process.env.SMTP_USER;
@@ -232,22 +294,20 @@ app.post('/api/login', async (req, res) => {
 
 
 
+    const isProd = process.env.NODE_ENV === 'production' || req.headers['x-forwarded-proto'] === 'https' || req.secure;
+
     res.setHeader(
       'Set-Cookie',
       cookie.serialize('token', token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        secure: isProd,
+        sameSite: isProd ? 'none' : 'lax',
         maxAge: 2 * 60 * 60,
         path: '/',
       })
     );
 
-
-
-
-
-    res.json({ message: 'Login successful', role: dbRole });
+    res.json({ message: 'Login successful', role: dbRole, token });
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ message: 'Server error during login' });
@@ -256,8 +316,7 @@ app.post('/api/login', async (req, res) => {
 
 app.get('/api/me', (req, res) => {
   try {
-    const cookies = cookie.parse(req.headers.cookie || '');
-    const token = cookies.token;
+    const token = getToken(req);
 
     if (!token) {
       return res.status(401).json({ message: 'No token found' });
@@ -309,7 +368,7 @@ app.post('/api/admin/reset-password', async (req, res) => {
 });
 
 app.post('/api/user/change-password', async (req, res) => {
-  const token = req.cookies.token;
+  const token = getToken(req);
   if (!token) return res.status(401).json({ message: 'Unauthorized' });
 
   const { currentPassword, newPassword } = req.body;
@@ -334,7 +393,7 @@ app.post('/api/user/change-password', async (req, res) => {
 });
 
 app.post('/api/request-room', async (req, res) => {
-  const token = req.cookies.token;
+  const token = getToken(req);
   if (!token) return res.status(401).json({ message: 'Unauthorized' });
 
   try {
@@ -391,7 +450,7 @@ app.post('/api/room-requests/:id/reject', async (req, res) => {
 });
 
 app.get('/api/my-bookings', async (req, res) => {
-  const token = req.cookies.token;
+  const token = getToken(req);
   if (!token) return res.status(401).json({ message: 'Unauthorized' });
 
   try {
@@ -434,7 +493,7 @@ app.get('/api/my-bookings', async (req, res) => {
 });
 
 app.delete('/api/room-requests/:id', async (req, res) => {
-  const token = req.cookies.token;
+  const token = getToken(req);
   if (!token) return res.status(401).json({ message: 'Unauthorized' });
 
   try {
@@ -468,7 +527,7 @@ app.delete('/api/rooms/:id', async (req, res) => {
 });
 
 app.post('/api/users', async (req, res) => {
-  const token = req.cookies.token;
+  const token = getToken(req);
   if (!token) return res.status(401).json({ message: 'Unauthorized: Admin authentication required' });
 
   try {
