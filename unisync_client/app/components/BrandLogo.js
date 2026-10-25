@@ -1,9 +1,20 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 
-export default function BrandLogo({ size = "md" }) {
+export default function BrandLogo({ size = "md", href }) {
+  const pathname = usePathname();
+  const [userRole, setUserRole] = useState(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setUserRole(localStorage.getItem("userRole"));
+    }
+  }, [pathname]);
+
   const iconSizes = {
     sm: "w-7 h-7",
     md: "w-9 h-9",
@@ -16,8 +27,12 @@ export default function BrandLogo({ size = "md" }) {
     lg: "text-3xl",
   };
 
+  const isLoginPage = pathname === "/Login";
+  const isAdmin = !isLoginPage && (pathname?.startsWith("/AdminPanel") || userRole === "admin");
+  const targetHref = href || (isLoginPage ? "/Login" : isAdmin ? "/AdminPanel" : "/");
+
   return (
-    <Link href="/" className="group flex items-center gap-3 select-none">
+    <Link href={targetHref} className="group flex items-center gap-3 select-none">
       <motion.div
         whileHover={{ scale: 1.08, rotate: 5 }}
         whileTap={{ scale: 0.95 }}

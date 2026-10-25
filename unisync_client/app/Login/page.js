@@ -61,6 +61,7 @@ export default function Login() {
           localStorage.setItem("token", data.token);
           document.cookie = `token=${data.token}; path=/; max-age=7200; SameSite=Lax${typeof window !== "undefined" && window.location.protocol === "https:" ? "; Secure" : ""}`;
         }
+        localStorage.setItem("userRole", data.role || role);
         const targetPath = role === "admin" ? "/AdminPanel" : "/";
         setMessage(`Login Successful as ${role === "admin" ? "Admin" : "User"}! Redirecting...`);
         

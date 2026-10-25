@@ -39,7 +39,7 @@ export default function Navbar() {
 
                 {/* Left side: Brand Logo */}
                 <div className="flex items-center justify-center lg:justify-start flex-1 lg:flex-initial pl-8 lg:pl-0">
-                  <BrandLogo size="md" />
+                  <BrandLogo size="md" href={pathname?.startsWith("/AdminPanel") ? "/AdminPanel" : "/"} />
                 </div>
 
                 {/* Middle: Desktop Navigation Links */}
