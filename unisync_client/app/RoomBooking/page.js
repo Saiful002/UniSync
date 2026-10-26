@@ -18,15 +18,16 @@ import {
   Monitor,
   Presentation
 } from "lucide-react";
+import { getApiUrl } from "../utils/apiUrl";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://uni-sync-delta.vercel.app";
-
-const fetcher = (url, body) =>
-  fetch(`${API_URL}${url}`, {
+const fetcher = (url, body) => {
+  const apiUrl = getApiUrl();
+  return fetch(`${apiUrl}${url}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   }).then((res) => res.json());
+};
 
 const roomTypes = ["Classroom", "Seminar Hall", "Conference Room", "Lab Room"];
 const amenities = ["Projector", "PC", "Whiteboard"];

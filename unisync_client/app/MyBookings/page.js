@@ -14,10 +14,18 @@ import {
   Trash2,
   BookmarkCheck
 } from "lucide-react";
+import { getApiUrl } from "../utils/apiUrl";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://uni-sync-delta.vercel.app";
+const authFetcher = (url) => {
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const headers = {};
+  if (token) headers["Authorization"] = `Bearer ${token}`;
 
-const fetcher = (url) => fetch(url, { credentials: "include" }).then((res) => res.json());
+  return fetch(url, { headers, credentials: "include" }).then((res) => {
+    if (!res.ok) return [];
+    return res.json();
+  });
+};
 
 const statusBadges = {
   Approved: {
@@ -35,7 +43,13 @@ const statusBadges = {
 };
 
 export default function MyBookings() {
-  const { data: bookingsData, error } = useSWR(`${API_URL}/api/my-bookings`, fetcher);
+  const apiUrl = getApiUrl();
+  const userEmail = typeof window !== "undefined" ? localStorage.getItem("userEmail") : null;
+  const bookingsEndpoint = userEmail
+    ? `${apiUrl}/api/my-bookings?email=${encodeURIComponent(userEmail)}`
+    : `${apiUrl}/api/my-bookings`;
+
+  const { data: bookingsData, error } = useSWR(bookingsEndpoint, authFetcher);
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
 
@@ -52,13 +66,15 @@ export default function MyBookings() {
     if (!confirmed) return;
 
     try {
-      const res = await fetch(`${API_URL}/api/room-requests/${id}`, {
+      const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+      const res = await fetch(`${apiUrl}/api/room-requests/${id}`, {
         method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         credentials: "include",
       });
 
       if (res.ok) {
-        mutate(`${API_URL}/api/my-bookings`);
+        mutate(bookingsEndpoint);
       } else {
         alert("Failed to cancel request.");
       }

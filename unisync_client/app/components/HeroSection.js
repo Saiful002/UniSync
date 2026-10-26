@@ -3,12 +3,22 @@
 import { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
-import { format } from "date-fns";
+import { format, isToday } from "date-fns";
 import Link from "next/link";
 import gsap from "gsap";
 import ThreeBackground from "./ThreeBackground";
 import VectorUniversityBuilding from "./VectorUniversityBuilding";
-import { Calendar as CalendarIcon, DoorOpen, Sparkles, CheckCircle2, Clock, ArrowRight } from "lucide-react";
+import {
+  Calendar as CalendarIcon,
+  DoorOpen,
+  Sparkles,
+  CheckCircle2,
+  Clock,
+  ArrowRight,
+  Loader2,
+  RefreshCw,
+} from "lucide-react";
+import { getApiUrl } from "../utils/apiUrl";
 
 const Calendar = dynamic(() => import("react-calendar"), { ssr: false });
 import "react-calendar/dist/Calendar.css";
@@ -16,6 +26,8 @@ import "react-calendar/dist/Calendar.css";
 export default function HeroSection() {
   const [totalRooms, setTotalRooms] = useState(0);
   const [availableRooms, setAvailableRooms] = useState(0);
+  const [bookedRooms, setBookedRooms] = useState(0);
+  const [loadingStats, setLoadingStats] = useState(false);
   const [date, setDate] = useState(new Date());
 
   const heroRef = useRef(null);
@@ -23,28 +35,33 @@ export default function HeroSection() {
   const subtitleRef = useRef(null);
   const ctaRef = useRef(null);
 
-  // Fetch room statistics
-  const fetchRoomStats = async () => {
+  // Fetch dynamic room statistics based on live database
+  const fetchRoomStats = async (selectedDate) => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://uni-sync-delta.vercel.app";
-      const res = await fetch(`${apiUrl}/room-stats`);
+      setLoadingStats(true);
+      const apiUrl = getApiUrl();
+      const formattedDate = selectedDate
+        ? format(selectedDate, "yyyy-MM-dd")
+        : format(new Date(), "yyyy-MM-dd");
+      const res = await fetch(`${apiUrl}/room-stats?date=${formattedDate}`);
       if (res.ok) {
         const data = await res.json();
-        setTotalRooms(data.totalRooms || 0);
-        setAvailableRooms(data.availableRooms || 0);
-      } else {
-        setTotalRooms(48);
-        setAvailableRooms(19);
+        setTotalRooms(data.totalRooms ?? 0);
+        setAvailableRooms(data.availableRooms ?? 0);
+        setBookedRooms(data.bookedRooms ?? 0);
       }
     } catch (error) {
-      setTotalRooms(48);
-      setAvailableRooms(19);
+      console.error("Error fetching room stats:", error);
+    } finally {
+      setLoadingStats(false);
     }
   };
 
   useEffect(() => {
-    fetchRoomStats();
+    fetchRoomStats(date);
+  }, [date]);
 
+  useEffect(() => {
     // GSAP Entrance Animations
     const ctx = gsap.context(() => {
       gsap.fromTo(
@@ -67,10 +84,15 @@ export default function HeroSection() {
     return () => ctx.revert();
   }, []);
 
+  const isSelectedToday = isToday(date);
+
   return (
-    <section ref={heroRef} className="relative min-h-[85vh] flex items-center justify-center overflow-hidden py-10 px-4 sm:px-6 lg:px-8">
+    <section
+      ref={heroRef}
+      className="relative min-h-[85vh] flex items-center justify-center overflow-hidden py-10 px-4 sm:px-6 lg:px-8"
+    >
       {/* 1. Generated Background Overlay */}
-      <div 
+      <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-15 z-0"
         style={{ backgroundImage: "url('/hero-bg.jpg')" }}
       />
@@ -89,18 +111,28 @@ export default function HeroSection() {
             <span>Next-Gen Academic Synchronization Platform</span>
           </div>
 
-          <h1 ref={titleRef} className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white leading-tight">
+          <h1
+            ref={titleRef}
+            className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white leading-tight"
+          >
             FIND THE BETTER <br />
             <span className="bg-gradient-to-r from-[#6ADB6A] via-emerald-400 to-green-300 bg-clip-text text-transparent glow-text">
               ACADEMIC SCHEDULE
             </span>
           </h1>
 
-          <p ref={subtitleRef} className="text-base sm:text-lg text-emerald-100/80 max-w-xl mx-auto lg:mx-0 leading-relaxed">
-            Revolutionize university space management. Experience intelligent room booking, instant availability tracking, automated schedules, and AI campus support.
+          <p
+            ref={subtitleRef}
+            className="text-base sm:text-lg text-emerald-100/80 max-w-xl mx-auto lg:mx-0 leading-relaxed"
+          >
+            Revolutionize university space management. Experience intelligent room booking, instant
+            availability tracking, automated schedules, and AI campus support.
           </p>
 
-          <div ref={ctaRef} className="pt-2 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4">
+          <div
+            ref={ctaRef}
+            className="pt-2 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4"
+          >
             <Link href="/RoomBooking" className="w-full sm:w-auto">
               <motion.button
                 whileHover={{ scale: 1.04, boxShadow: "0 0 30px rgba(52, 211, 153, 0.5)" }}
@@ -145,29 +177,53 @@ export default function HeroSection() {
           <VectorUniversityBuilding />
         </div>
 
-        {/* Right Column: Widgets */}
+        {/* Right Column: Dynamic Database Availability & Calendar */}
         <div className="lg:col-span-3 space-y-5">
-          {/* Room Availability Card */}
+          {/* Room Availability Card (Dynamic from Database) */}
           <div className="glass-card p-5 rounded-2xl border-emerald-500/20 shadow-2xl relative overflow-hidden">
-            <h2 className="text-base font-bold text-white flex items-center justify-center lg:justify-start gap-2 mb-4">
-              <DoorOpen className="w-4 h-4 text-emerald-400" />
-              <span>Live Room Availability</span>
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-bold text-white flex items-center gap-2">
+                <DoorOpen className="w-4 h-4 text-emerald-400" />
+                <span>Live Room Availability</span>
+              </h2>
+              {loadingStats ? (
+                <Loader2 className="w-3.5 h-3.5 text-emerald-400 animate-spin" />
+              ) : (
+                <button
+                  onClick={() => fetchRoomStats(date)}
+                  title="Refresh Availability"
+                  className="p-1 rounded text-emerald-400/60 hover:text-emerald-300 transition"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                </button>
+              )}
+            </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="glass-panel p-3 rounded-xl text-center border-emerald-500/20">
-                <span className="text-[10px] uppercase tracking-wider text-emerald-300 font-semibold">Total Rooms</span>
-                <div className="mt-1 text-2xl font-extrabold text-white flex items-center justify-center mx-auto w-12 h-12 rounded-full border border-emerald-500/40 bg-emerald-950/60">
+                <span className="text-[10px] uppercase tracking-wider text-emerald-300 font-semibold">
+                  Total Rooms
+                </span>
+                <div className="mt-1 text-2xl font-extrabold text-white flex items-center justify-center mx-auto w-12 h-12 rounded-full border border-emerald-500/40 bg-emerald-950/60 shadow-inner">
                   {totalRooms}
                 </div>
               </div>
 
               <div className="glass-panel p-3 rounded-xl text-center border-emerald-500/20">
-                <span className="text-[10px] uppercase tracking-wider text-emerald-300 font-semibold">Available Now</span>
-                <div className="mt-1 text-2xl font-extrabold text-[#6ADB6A] flex items-center justify-center mx-auto w-12 h-12 rounded-full border border-[#6ADB6A] bg-emerald-950/80 glow-emerald">
+                <span className="text-[10px] uppercase tracking-wider text-emerald-300 font-semibold line-clamp-1">
+                  {isSelectedToday ? "Available Now" : "Available"}
+                </span>
+                <div className="mt-1 text-2xl font-extrabold text-[#6ADB6A] flex items-center justify-center mx-auto w-12 h-12 rounded-full border border-[#6ADB6A] bg-emerald-950/80 glow-emerald shadow-inner">
                   {availableRooms}
                 </div>
               </div>
+            </div>
+
+            <div className="mt-3 pt-2.5 border-t border-emerald-500/15 flex items-center justify-between text-[11px] text-emerald-300/70">
+              <span>Reserved / In-Use:</span>
+              <span className="font-bold text-white bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-500/30">
+                {bookedRooms} {bookedRooms === 1 ? "room" : "rooms"}
+              </span>
             </div>
           </div>
 
@@ -190,7 +246,9 @@ export default function HeroSection() {
             />
 
             <div className="mt-3 p-2.5 rounded-xl bg-emerald-950/80 border border-emerald-500/20 text-center">
-              <span className="text-[10px] text-emerald-400 font-semibold uppercase tracking-wider">Target Date:</span>
+              <span className="text-[10px] text-emerald-400 font-semibold uppercase tracking-wider">
+                Target Date:
+              </span>
               <p className="text-xs font-bold text-white mt-0.5">
                 {format(date, "EEEE, MMMM d, yyyy")}
               </p>

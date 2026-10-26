@@ -15,8 +15,7 @@ import {
   Info
 } from "lucide-react";
 import Link from "next/link";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://uni-sync-delta.vercel.app";
+import { getApiUrl } from "../../utils/apiUrl";
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -28,6 +27,8 @@ export default function RoomDetailsPage({ params }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
 
+  const apiUrl = getApiUrl();
+
   useEffect(() => {
     const date = sessionStorage.getItem("selectedDate");
     const time = sessionStorage.getItem("selectedTime");
@@ -36,7 +37,7 @@ export default function RoomDetailsPage({ params }) {
   }, []);
 
   const { data: room, error, isLoading } = useSWR(
-    `${API_URL}/api/RoomDetails/${id}`,
+    `${apiUrl}/api/RoomDetails/${id}`,
     fetcher
   );
 
@@ -50,10 +51,12 @@ export default function RoomDetailsPage({ params }) {
     setToastMessage(null);
 
     try {
-      const res = await fetch(`${API_URL}/api/request-room`, {
+      const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+      const res = await fetch(`${apiUrl}/api/request-room`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         credentials: "include",
         body: JSON.stringify({

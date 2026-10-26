@@ -144,3 +144,23 @@ VALUES (
 SELECT * from bookings;
 
 SELECT * from users;
+
+-- Notifications Table for User-Specific Realtime Alerts
+CREATE TABLE IF NOT EXISTS notifications (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_email VARCHAR(255) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    type VARCHAR(50) DEFAULT 'info',
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Seed Sample Notifications
+INSERT INTO notifications (user_email, title, message, type, is_read)
+VALUES 
+    ('saifulkabirchowdhury@gmail.com', 'Booking Confirmed', 'Your reservation for E-101 on 2026-10-27 (11:03:00 - 00:03:00) is approved and active.', 'success', false),
+    ('saifulkabirchowdhury@gmail.com', 'Pending Approval', 'Your booking request for G-101 on 2026-10-29 (11:15 - 15:17) has been received and is waiting for administrator approval.', 'warning', false)
+ON DUPLICATE KEY UPDATE title = VALUES(title);
+
+SELECT * FROM notifications;

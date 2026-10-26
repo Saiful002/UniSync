@@ -153,7 +153,7 @@ testDatabaseConnection();
 
 const SECRET_KEY = process.env.SECRET_KEY || 'unisync_secret_key_2026';
 
-// Auto Database Schema Migration for Role Column
+// Auto Database Schema Migration for Role Column & Notifications Table
 async function initDb() {
   try {
     const [columns] = await db.query("SHOW COLUMNS FROM users LIKE 'role'");
@@ -168,6 +168,63 @@ async function initDb() {
       console.log("Static Admin user seeded: admin@unisync.com");
     } else {
       await db.query("UPDATE users SET role = 'admin' WHERE email = 'admin@unisync.com'");
+    }
+
+    // Auto-create notifications table if not exists
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS notifications (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_email VARCHAR(255) NOT NULL,
+        title VARCHAR(255) NOT NULL,
+        message TEXT NOT NULL,
+        type VARCHAR(50) DEFAULT 'info',
+        is_read BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // If notifications table is empty, seed from current bookings and requests
+    const [[{ noteCount }]] = await db.query('SELECT COUNT(*) AS noteCount FROM notifications');
+    if (noteCount === 0) {
+      const [allBookings] = await db.query(`
+        SELECT b.user_email, r.name AS room_name, DATE_FORMAT(b.booking_date, '%Y-%m-%d') AS date, b.start_time, b.end_time 
+        FROM bookings b 
+        LEFT JOIN rooms r ON b.room_id = r.id
+      `);
+      for (const b of allBookings) {
+        if (b.user_email) {
+          await db.query(
+            'INSERT INTO notifications (user_email, title, message, type, is_read) VALUES (?, ?, ?, ?, ?)',
+            [
+              b.user_email,
+              'Booking Confirmed',
+              `Your reservation for ${b.room_name || 'Room'} on ${b.date} (${b.start_time} - ${b.end_time}) is approved and active.`,
+              'success',
+              false,
+            ]
+          );
+        }
+      }
+
+      const [allRequests] = await db.query(`
+        SELECT rr.user_email, r.name AS room_name, DATE_FORMAT(rr.selected_date, '%Y-%m-%d') AS date, rr.start_time, rr.end_time 
+        FROM room_request rr 
+        LEFT JOIN rooms r ON rr.room_id = r.id
+      `);
+      for (const req of allRequests) {
+        if (req.user_email) {
+          await db.query(
+            'INSERT INTO notifications (user_email, title, message, type, is_read) VALUES (?, ?, ?, ?, ?)',
+            [
+              req.user_email,
+              'Pending Approval',
+              `Your booking request for ${req.room_name || 'Room ' + req.room_id} on ${req.date} (${req.start_time} - ${req.end_time}) has been received and is waiting for administrator approval.`,
+              'warning',
+              false,
+            ]
+          );
+        }
+      }
     }
   } catch (err) {
     console.error("Database initialization notice:", err.message);
@@ -399,9 +456,24 @@ app.post('/api/request-room', async (req, res) => {
     const decoded = jwt.verify(token, SECRET_KEY);
     const { roomId, selectedDate, startTime, endingTime } = req.body;
 
+    const [roomRows] = await db.query('SELECT name FROM rooms WHERE id = ?', [roomId]);
+    const roomName = roomRows.length > 0 ? roomRows[0].name : `Room ${roomId}`;
+
     await db.query(
       'INSERT INTO room_request (user_email, room_id, selected_date, start_time, end_time) VALUES (?, ?, ?, ?, ?)',
       [decoded.email, roomId, selectedDate, startTime, endingTime]
+    );
+
+    // Notify user of submitted request
+    await db.query(
+      'INSERT INTO notifications (user_email, title, message, type, is_read) VALUES (?, ?, ?, ?, ?)',
+      [
+        decoded.email,
+        'Pending Approval',
+        `Your reservation request for ${roomName} on ${selectedDate} (${startTime} - ${endingTime}) has been submitted and is pending administrator approval.`,
+        'warning',
+        false,
+      ]
     );
 
     res.json({ message: 'Room requested successfully' });
@@ -413,7 +485,20 @@ app.post('/api/request-room', async (req, res) => {
 
 app.get('/api/room-requests', async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT * FROM room_request');
+    const [rows] = await db.query(`
+      SELECT 
+        rr.id,
+        rr.user_email,
+        rr.room_id,
+        DATE_FORMAT(rr.selected_date, '%Y-%m-%d') AS selected_date,
+        rr.start_time,
+        rr.end_time,
+        COALESCE(r.name, CONCAT('Room ', rr.room_id)) AS room_name,
+        r.annex
+      FROM room_request rr
+      LEFT JOIN rooms r ON rr.room_id = r.id
+      ORDER BY rr.id DESC
+    `);
     res.json(rows);
   } catch (err) {
     res.status(500).json({ message: 'Error fetching requests' });
@@ -422,13 +507,31 @@ app.get('/api/room-requests', async (req, res) => {
 
 app.post('/api/room-requests/:id/accept', async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT * FROM room_request WHERE id = ?', [req.params.id]);
+    const [rows] = await db.query(`
+      SELECT rr.*, r.name AS room_name, DATE_FORMAT(rr.selected_date, '%Y-%m-%d') AS formatted_date 
+      FROM room_request rr 
+      LEFT JOIN rooms r ON rr.room_id = r.id 
+      WHERE rr.id = ?
+    `, [req.params.id]);
+
     if (rows.length === 0) return res.status(404).json({ message: 'Request not found' });
 
     const request = rows[0];
     await db.query(
       'INSERT INTO bookings (room_id, booking_date, start_time, end_time, user_email) VALUES (?, ?, ?, ?, ?)',
       [request.room_id, request.selected_date, request.start_time, request.end_time, request.user_email]
+    );
+
+    // Create confirmation notification for user
+    await db.query(
+      'INSERT INTO notifications (user_email, title, message, type, is_read) VALUES (?, ?, ?, ?, ?)',
+      [
+        request.user_email,
+        'Booking Confirmed',
+        `Great news! Your booking request for ${request.room_name || 'Room ' + request.room_id} on ${request.formatted_date} (${request.start_time} - ${request.end_time}) has been APPROVED by the administrator.`,
+        'success',
+        false,
+      ]
     );
 
     await db.query('DELETE FROM room_request WHERE id = ?', [req.params.id]);
@@ -441,6 +544,29 @@ app.post('/api/room-requests/:id/accept', async (req, res) => {
 
 app.post('/api/room-requests/:id/reject', async (req, res) => {
   try {
+    const [rows] = await db.query(`
+      SELECT rr.*, r.name AS room_name, DATE_FORMAT(rr.selected_date, '%Y-%m-%d') AS formatted_date 
+      FROM room_request rr 
+      LEFT JOIN rooms r ON rr.room_id = r.id 
+      WHERE rr.id = ?
+    `, [req.params.id]);
+
+    if (rows.length === 0) return res.status(404).json({ message: 'Request not found' });
+
+    const request = rows[0];
+
+    // Create rejection notification for user
+    await db.query(
+      'INSERT INTO notifications (user_email, title, message, type, is_read) VALUES (?, ?, ?, ?, ?)',
+      [
+        request.user_email,
+        'Booking Rejected',
+        `Your reservation request for ${request.room_name || 'Room ' + request.room_id} on ${request.formatted_date} (${request.start_time} - ${request.end_time}) was declined by administration.`,
+        'error',
+        false,
+      ]
+    );
+
     await db.query('DELETE FROM room_request WHERE id = ?', [req.params.id]);
     res.json({ message: 'Room request rejected' });
   } catch (err) {
@@ -449,13 +575,21 @@ app.post('/api/room-requests/:id/reject', async (req, res) => {
 });
 
 app.get('/api/my-bookings', async (req, res) => {
+  let user_email = null;
   const token = getToken(req);
-  if (!token) return res.status(401).json({ message: 'Unauthorized' });
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, SECRET_KEY);
+      user_email = decoded.email;
+    } catch (e) {}
+  }
+  if (!user_email && req.query.email) {
+    user_email = req.query.email;
+  }
+
+  if (!user_email) return res.status(401).json({ message: 'Unauthorized' });
 
   try {
-    const decoded = jwt.verify(token, SECRET_KEY);
-    const user_email = decoded.email;
-
     const [approvedRows] = await db.query(
       "SELECT b.id, r.name AS room, DATE_FORMAT(b.booking_date, '%Y-%m-%d') AS date, b.start_time, b.end_time FROM bookings b JOIN rooms r ON b.room_id = r.id WHERE b.user_email = ?",
       [user_email]
@@ -496,6 +630,27 @@ app.delete('/api/room-requests/:id', async (req, res) => {
   if (!token) return res.status(401).json({ message: 'Unauthorized' });
 
   try {
+    const [rows] = await db.query(`
+      SELECT rr.*, r.name AS room_name 
+      FROM room_request rr 
+      LEFT JOIN rooms r ON rr.room_id = r.id 
+      WHERE rr.id = ?
+    `, [req.params.id]);
+
+    if (rows.length > 0) {
+      const request = rows[0];
+      await db.query(
+        'INSERT INTO notifications (user_email, title, message, type, is_read) VALUES (?, ?, ?, ?, ?)',
+        [
+          request.user_email,
+          'Booking Cancelled',
+          `You have cancelled your pending request for ${request.room_name || 'Room ' + request.room_id}.`,
+          'info',
+          false,
+        ]
+      );
+    }
+
     await db.query('DELETE FROM room_request WHERE id = ?', [req.params.id]);
     res.json({ message: 'Room request cancelled' });
   } catch (error) {
@@ -566,20 +721,184 @@ app.delete('/api/users/:id', async (req, res) => {
   }
 });
 
-app.get('/room-stats', async (req, res) => {
+// User Specific Realtime Notifications APIs
+app.get('/api/notifications', async (req, res) => {
+  let userEmail = null;
+  const token = getToken(req);
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, SECRET_KEY);
+      userEmail = decoded.email;
+    } catch (e) {}
+  }
+  if (!userEmail && req.query.email) {
+    userEmail = req.query.email;
+  }
+
+  if (!userEmail) {
+    return res.json([]);
+  }
+
   try {
-    const [[{ totalRooms }]] = await db.query('SELECT COUNT(*) AS totalRooms FROM rooms');
-    const [[{ bookedRooms }]] = await db.query(
-      'SELECT COUNT(DISTINCT room_id) AS bookedRooms FROM bookings'
+    const [rows] = await db.query(
+      "SELECT id, user_email, title, message, type, is_read, DATE_FORMAT(created_at, '%Y-%m-%d %H:%i') AS time FROM notifications WHERE user_email = ? ORDER BY id DESC LIMIT 50",
+      [userEmail]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Error fetching notifications:', err);
+    return res.json([]);
+  }
+});
+
+app.put('/api/notifications/read-all', async (req, res) => {
+  let userEmail = null;
+  const token = getToken(req);
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, SECRET_KEY);
+      userEmail = decoded.email;
+    } catch (e) {}
+  }
+  if (!userEmail && req.query.email) userEmail = req.query.email;
+  if (!userEmail && req.body && req.body.email) userEmail = req.body.email;
+
+  try {
+    if (userEmail) {
+      await db.query('UPDATE notifications SET is_read = TRUE WHERE user_email = ?', [userEmail]);
+    } else {
+      await db.query('UPDATE notifications SET is_read = TRUE');
+    }
+    res.json({ message: 'Notifications marked as read' });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to mark notifications read' });
+  }
+});
+
+app.delete('/api/notifications/:id', async (req, res) => {
+  try {
+    await db.query('DELETE FROM notifications WHERE id = ?', [req.params.id]);
+    res.json({ message: 'Notification deleted' });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to delete notification' });
+  }
+});
+
+// Admin Bookings & Reservations Management APIs (Date-wise with Cancel Option)
+app.get('/api/admin/bookings', async (req, res) => {
+  try {
+    const { date } = req.query;
+
+    let query = `
+      SELECT 
+        b.id,
+        b.room_id,
+        b.user_email,
+        DATE_FORMAT(b.booking_date, '%Y-%m-%d') AS booking_date,
+        b.start_time,
+        b.end_time,
+        COALESCE(r.name, CONCAT('Room ', b.room_id)) AS room_name,
+        r.annex,
+        CASE 
+          WHEN b.booking_date = CURDATE() THEN 'Booked Today'
+          WHEN b.booking_date > CURDATE() THEN 'Upcoming'
+          ELSE 'Completed'
+        END AS live_status
+      FROM bookings b
+      LEFT JOIN rooms r ON b.room_id = r.id
+      WHERE 1=1
+    `;
+    const params = [];
+
+    if (date && date.trim() !== '') {
+      query += ' AND b.booking_date = ?';
+      params.push(date.trim());
+    }
+
+    query += ' ORDER BY b.booking_date DESC, b.start_time ASC';
+
+    const [rows] = await db.query(query, params);
+    res.json(rows);
+  } catch (err) {
+    console.error('Error fetching admin bookings:', err);
+    res.status(500).json({ message: 'Failed to fetch bookings' });
+  }
+});
+
+app.delete('/api/admin/bookings/:id', async (req, res) => {
+  try {
+    const [bookingRows] = await db.query(
+      'SELECT b.*, r.name AS room_name, DATE_FORMAT(b.booking_date, "%Y-%m-%d") AS formatted_date FROM bookings b LEFT JOIN rooms r ON b.room_id = r.id WHERE b.id = ?',
+      [req.params.id]
     );
 
-    const availableRooms = totalRooms - bookedRooms;
-    res.json({ totalRooms, availableRooms });
+    if (bookingRows.length > 0) {
+      const booking = bookingRows[0];
+      await db.query(
+        'INSERT INTO notifications (user_email, title, message, type, is_read) VALUES (?, ?, ?, ?, ?)',
+        [
+          booking.user_email,
+          'Reservation Cancelled',
+          `Your reservation for ${booking.room_name || 'Room ' + booking.room_id} on ${booking.formatted_date} (${booking.start_time} - ${booking.end_time}) was cancelled by administration.`,
+          'error',
+          false,
+        ]
+      );
+    }
+
+    await db.query('DELETE FROM bookings WHERE id = ?', [req.params.id]);
+    res.json({ message: 'Reservation cancelled successfully from database', id: req.params.id });
+  } catch (err) {
+    console.error('Delete booking error:', err);
+    res.status(500).json({ message: 'Failed to delete booking' });
+  }
+});
+
+const getRoomStatsHandler = async (req, res) => {
+  try {
+    const { date, time } = req.query;
+    const [[{ totalRooms }]] = await db.query('SELECT COUNT(*) AS totalRooms FROM rooms');
+
+    let bookedCountQuery = '';
+    let params = [];
+
+    if (date && time) {
+      bookedCountQuery = `
+        SELECT COUNT(DISTINCT room_id) AS bookedRooms 
+        FROM bookings 
+        WHERE booking_date = ? 
+          AND ? >= start_time AND ? < end_time
+      `;
+      params = [date, time, time];
+    } else if (date) {
+      bookedCountQuery = `
+        SELECT COUNT(DISTINCT room_id) AS bookedRooms 
+        FROM bookings 
+        WHERE booking_date = ?
+      `;
+      params = [date];
+    } else {
+      // Realtime Available Now: checks rooms booked currently today
+      bookedCountQuery = `
+        SELECT COUNT(DISTINCT room_id) AS bookedRooms 
+        FROM bookings 
+        WHERE booking_date = CURDATE() 
+          AND CURTIME() >= start_time AND CURTIME() < end_time
+      `;
+    }
+
+    const [[{ bookedRooms }]] = await db.query(bookedCountQuery, params);
+    const availableRooms = Math.max(0, totalRooms - (bookedRooms || 0));
+
+    res.json({ totalRooms, availableRooms, bookedRooms: bookedRooms || 0 });
   } catch (err) {
     console.error('Error fetching room stats:', err);
     res.status(500).json({ error: 'Failed to fetch room statistics' });
   }
-});
+};
+
+app.get('/room-stats', getRoomStatsHandler);
+app.get('/api/room-stats', getRoomStatsHandler);
 
 // app.listen(5000, () => console.log('Server running on http://localhost:5000'));
 

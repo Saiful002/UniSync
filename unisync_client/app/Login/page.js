@@ -17,10 +17,10 @@ import {
 } from "lucide-react";
 import BrandLogo from "../components/BrandLogo";
 import LoginThreeBackground from "../components/LoginThreeBackground";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://uni-sync-delta.vercel.app";
+import { getApiUrl } from "../utils/apiUrl";
 
 export default function Login() {
+  const API_URL = getApiUrl();
   const [role, setRole] = useState("user"); // 'user' or 'admin'
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -61,6 +61,7 @@ export default function Login() {
           localStorage.setItem("token", data.token);
           document.cookie = `token=${data.token}; path=/; max-age=7200; SameSite=Lax${typeof window !== "undefined" && window.location.protocol === "https:" ? "; Secure" : ""}`;
         }
+        localStorage.setItem("userEmail", email);
         localStorage.setItem("userRole", data.role || role);
         const targetPath = role === "admin" ? "/AdminPanel" : "/";
         setMessage(`Login Successful as ${role === "admin" ? "Admin" : "User"}! Redirecting...`);

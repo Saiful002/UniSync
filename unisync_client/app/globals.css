@@ -95,13 +95,50 @@ body {
   padding: 0.5rem !important;
 }
 
+.react-calendar__navigation {
+  display: flex !important;
+  align-items: center !important;
+  height: 38px !important;
+  margin-bottom: 0.5rem !important;
+}
+
 .react-calendar__navigation button {
   color: #6adb6a !important;
-  min-width: 44px !important;
+  min-width: 28px !important;
+  height: 32px !important;
+  padding: 0 4px !important;
   background: transparent !important;
-  font-size: 1.1rem !important;
+  font-size: 0.9rem !important;
   font-weight: 600 !important;
   border-radius: 0.5rem !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.react-calendar__navigation button.react-calendar__navigation__arrow {
+  flex: 0 0 26px !important;
+  min-width: 26px !important;
+  max-width: 26px !important;
+  font-size: 1rem !important;
+}
+
+.react-calendar__navigation button.react-calendar__navigation__label {
+  flex-grow: 1 !important;
+  white-space: nowrap !important;
+  font-size: 0.875rem !important;
+  font-weight: 700 !important;
+  padding: 0 4px !important;
+  overflow: visible !important;
+  text-align: center !important;
+}
+
+.react-calendar__navigation__label__labelText,
+.react-calendar__navigation button.react-calendar__navigation__label span {
+  white-space: nowrap !important;
+  overflow: visible !important;
+  display: inline !important;
+  word-break: keep-all !important;
 }
 
 .react-calendar__navigation button:enabled:hover {

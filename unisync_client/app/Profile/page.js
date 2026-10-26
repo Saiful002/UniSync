@@ -15,17 +15,25 @@ import {
   Lock,
   Sparkles
 } from "lucide-react";
+import { getApiUrl } from "../utils/apiUrl";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://uni-sync-delta.vercel.app";
+const fetcher = (url) => {
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const headers = {};
+  if (token) headers["Authorization"] = `Bearer ${token}`;
 
-const fetcher = (url) =>
-  fetch(url.startsWith("http") ? url : `${API_URL}${url}`, {
+  const apiUrl = getApiUrl();
+  const fullUrl = url.startsWith("http") ? url : `${apiUrl}${url}`;
+  return fetch(fullUrl, {
+    headers,
     credentials: "include",
-  }).then((res) => res.json());
+  }).then((res) => (res.ok ? res.json() : null));
+};
 
 export default function ProfilePage() {
-  const { data: user, error, isLoading } = useSWR(`${API_URL}/api/me`, fetcher);
-  const { data: bookings } = useSWR(`${API_URL}/api/my-bookings`, fetcher);
+  const apiUrl = getApiUrl();
+  const { data: user, error, isLoading } = useSWR(`${apiUrl}/api/me`, fetcher);
+  const { data: bookings } = useSWR(`${apiUrl}/api/my-bookings`, fetcher);
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
