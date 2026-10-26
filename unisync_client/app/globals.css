@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 :root {
+  color-scheme: dark;
   --font-sans: var(--font-jakarta), system-ui, -apple-system, sans-serif;
   --font-mono: var(--font-mono), monospace;
   --background: #050806;
@@ -16,6 +17,22 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
   overflow-x: hidden;
+  color-scheme: dark;
+}
+
+/* Force all text in form controls to be bright white */
+input,
+textarea,
+select,
+button {
+  color-scheme: dark;
+}
+
+input,
+textarea,
+select {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
 }
 
 /* Glassmorphism Classes - Obsidian Black & Emerald Tone */
@@ -45,7 +62,8 @@ body {
 .glass-input {
   background: rgba(8, 12, 9, 0.85);
   border: 1px solid rgba(52, 211, 153, 0.25);
-  color: #ffffff;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
   backdrop-filter: blur(10px);
   transition: all 0.2s ease;
 }
@@ -54,18 +72,42 @@ body {
   outline: none;
   border-color: #34d399;
   box-shadow: 0 0 18px rgba(52, 211, 153, 0.35);
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
 }
 
-/* Dark theme styling for browser autofill (prevent stark white inputs) */
+/* Comprehensive dark theme styling for browser autofill & autocomplete previews */
 input:-webkit-autofill,
 input:-webkit-autofill:hover, 
 input:-webkit-autofill:focus, 
-input:-webkit-autofill:active {
-  -webkit-box-shadow: 0 0 0 1000px #09120b inset !important;
+input:-webkit-autofill:active,
+input:-internal-autofill-selected,
+input:-internal-autofill-previewed {
+  -webkit-box-shadow: 0 0 0 1000px #08100a inset !important;
+  box-shadow: 0 0 0 1000px #08100a inset !important;
   -webkit-text-fill-color: #ffffff !important;
+  color: #ffffff !important;
   caret-color: #34d399 !important;
   border-color: rgba(52, 211, 153, 0.4) !important;
   transition: background-color 5000s ease-in-out 0s;
+}
+
+input:-webkit-autofill::first-line,
+input:-internal-autofill-selected::first-line,
+input:-internal-autofill-previewed::first-line {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  font-family: inherit !important;
+}
+
+/* Firefox autofill */
+input:autofill,
+input:autofill:hover,
+input:autofill:focus {
+  background-color: #08100a !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  box-shadow: 0 0 0 1000px #08100a inset !important;
 }
 
 

@@ -220,7 +220,8 @@ export default function Login() {
             </label>
             <input
               type="email"
-              className="w-full glass-input p-3.5 rounded-xl text-sm border-emerald-500/20 text-white placeholder-emerald-400/40"
+              className="w-full glass-input bg-[#08100a] p-3.5 rounded-xl text-sm border-emerald-500/25 text-white placeholder-emerald-400/40 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400/40"
+              style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff", colorScheme: "dark" }}
               placeholder={role === "admin" ? "admin@university.edu" : "student@university.edu"}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -251,7 +252,8 @@ export default function Login() {
 
             <input
               type="password"
-              className="w-full glass-input p-3.5 rounded-xl text-sm border-emerald-500/20 text-white placeholder-emerald-400/40"
+              className="w-full glass-input bg-[#08100a] p-3.5 rounded-xl text-sm border-emerald-500/25 text-white placeholder-emerald-400/40 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400/40"
+              style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff", colorScheme: "dark" }}
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -335,7 +337,8 @@ export default function Login() {
                       value={forgotEmail}
                       onChange={(e) => setForgotEmail(e.target.value)}
                       placeholder="admin@university.edu"
-                      className="w-full glass-input p-3 rounded-xl text-sm border-emerald-500/20 text-white"
+                      className="w-full glass-input bg-[#08100a] p-3 rounded-xl text-sm border-emerald-500/25 text-white"
+                      style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff", colorScheme: "dark" }}
                     />
                   </div>
 
@@ -360,7 +363,8 @@ export default function Login() {
                       value={enteredCode}
                       onChange={(e) => setEnteredCode(e.target.value)}
                       placeholder="e.g. 894201"
-                      className="w-full glass-input p-3 rounded-xl text-sm border-emerald-500/20 text-white tracking-widest font-mono text-center"
+                      className="w-full glass-input bg-[#08100a] p-3 rounded-xl text-sm border-emerald-500/25 text-white tracking-widest font-mono text-center"
+                      style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff", colorScheme: "dark" }}
                     />
                   </div>
 
@@ -374,7 +378,8 @@ export default function Login() {
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       placeholder="Enter new password"
-                      className="w-full glass-input p-3 rounded-xl text-sm border-emerald-500/20 text-white"
+                      className="w-full glass-input bg-[#08100a] p-3 rounded-xl text-sm border-emerald-500/25 text-white"
+                      style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff", colorScheme: "dark" }}
                     />
                   </div>
 
