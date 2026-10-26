@@ -17,6 +17,7 @@ import {
   ShieldCheckIcon,
   EnvelopeIcon,
   LockClosedIcon,
+  MagnifyingGlassIcon,
 } from "@heroicons/react/24/outline";
 import { motion } from "framer-motion";
 import { getApiUrl } from "../utils/apiUrl";
@@ -52,6 +53,7 @@ export default function AdminPanel() {
   // User Management State
   const [newUserRole, setNewUserRole] = useState("user");
   const [userFilterRole, setUserFilterRole] = useState("all");
+  const [userSearch, setUserSearch] = useState("");
   const [isSubmittingUser, setIsSubmittingUser] = useState(false);
 
   // Date-wise Reservations Filter (defaults to empty to show ALL bookings)
@@ -666,9 +668,17 @@ export default function AdminPanel() {
 
       case "users": {
         const filteredUsers = safeUsers.filter((u) => {
-          if (userFilterRole === "all") return true;
-          const r = (u.role || "user").toLowerCase();
-          return r === userFilterRole;
+          if (userFilterRole !== "all") {
+            const r = (u.role || "user").toLowerCase();
+            if (r !== userFilterRole) return false;
+          }
+          if (userSearch.trim()) {
+            const q = userSearch.toLowerCase().trim();
+            const emailMatch = u.email?.toLowerCase().includes(q);
+            const idMatch = String(u.id).includes(q);
+            if (!emailMatch && !idMatch) return false;
+          }
+          return true;
         });
 
         const adminCount = safeUsers.filter((u) => (u.role || "").toLowerCase() === "admin").length;
@@ -677,235 +687,264 @@ export default function AdminPanel() {
         return (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Create User Form */}
-            <div className="lg:col-span-1 glass-panel p-6 rounded-2xl border-emerald-500/20 shadow-xl space-y-4">
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-xl bg-emerald-950/80 border border-emerald-500/30 text-emerald-400">
-                  <UserGroupIcon className="w-5 h-5" />
+            <div className="lg:col-span-1 glass-panel p-6 rounded-3xl border border-emerald-500/20 shadow-2xl space-y-5 bg-[#080d09]/95 flex flex-col justify-between">
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 pb-3 border-b border-emerald-500/15">
+                  <div className="p-2.5 rounded-2xl bg-emerald-950/90 border border-emerald-500/40 text-emerald-400 shadow-md">
+                    <UserGroupIcon className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-white">Create New User</h3>
+                    <p className="text-xs text-emerald-400/70">Assign portal role & system credentials</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-lg font-bold text-white">Create New User</h3>
-                  <p className="text-xs text-emerald-400/70">Assign role and system access</p>
-                </div>
-              </div>
 
-              <form
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  const formData = new FormData(e.target);
-                  const email = formData.get("email")?.toString().trim();
-                  const password = formData.get("password")?.toString();
-                  const role = formData.get("role") || newUserRole || "user";
+                <form
+                  id="create-user-form"
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    const formData = new FormData(e.target);
+                    const email = formData.get("email")?.toString().trim();
+                    const password = formData.get("password")?.toString();
+                    const role = newUserRole || "user";
 
-                  if (!email || !password) {
-                    alert("Please provide both email and password.");
-                    return;
-                  }
-
-                  setIsSubmittingUser(true);
-                  try {
-                    const token =
-                      typeof window !== "undefined" ? localStorage.getItem("token") : null;
-                    const res = await fetch(`${API_URL}/api/users`, {
-                      method: "POST",
-                      headers: {
-                        "Content-Type": "application/json",
-                        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-                      },
-                      body: JSON.stringify({ email, password, role }),
-                      credentials: "include",
-                    });
-
-                    const result = await res.json();
-                    if (res.ok) {
-                      alert(result.message || `User created successfully with role '${role}'`);
-                      e.target.reset();
-                      setNewUserRole("user");
-                      mutateUsers();
-                    } else {
-                      alert(result.message || "Failed to create user");
+                    if (!email || !password) {
+                      alert("Please provide both email and password.");
+                      return;
                     }
-                  } catch (err) {
-                    console.error(err);
-                    alert("Server error creating user.");
-                  } finally {
-                    setIsSubmittingUser(false);
-                  }
-                }}
-                className="space-y-4"
-              >
-                <div>
-                  <label className="block text-xs font-semibold text-emerald-300 mb-1.5 flex items-center gap-1.5">
-                    <EnvelopeIcon className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Email Address</span>
-                  </label>
-                  <input
-                    name="email"
-                    type="email"
-                    required
-                    placeholder="user@university.edu"
-                    className="w-full glass-input p-3 rounded-xl text-sm border-emerald-500/20 text-white placeholder-emerald-100/30 focus:border-emerald-400"
-                  />
-                </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-emerald-300 mb-1.5 flex items-center gap-1.5">
-                    <LockClosedIcon className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Password</span>
-                  </label>
-                  <input
-                    name="password"
-                    type="password"
-                    required
-                    placeholder="••••••••"
-                    className="w-full glass-input p-3 rounded-xl text-sm border-emerald-500/20 text-white placeholder-emerald-100/30 focus:border-emerald-400"
-                  />
-                </div>
+                    setIsSubmittingUser(true);
+                    try {
+                      const token =
+                        typeof window !== "undefined" ? localStorage.getItem("token") : null;
+                      const res = await fetch(`${API_URL}/api/users`, {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/json",
+                          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                        },
+                        body: JSON.stringify({ email, password, role }),
+                        credentials: "include",
+                      });
 
-                {/* Role Selection Option */}
-                <div>
-                  <label className="block text-xs font-semibold text-emerald-300 mb-1.5 flex items-center justify-between">
-                    <span className="flex items-center gap-1.5">
-                      <ShieldCheckIcon className="w-3.5 h-3.5 text-emerald-400" />
-                      Select User Role
-                    </span>
-                    <span className="text-[11px] text-emerald-400/70 font-normal">
-                      Required
-                    </span>
-                  </label>
-
-                  {/* Visual Role Cards */}
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <button
-                      type="button"
-                      onClick={() => setNewUserRole("user")}
-                      className={`p-3 rounded-xl border text-left transition-all relative flex flex-col gap-1 ${
-                        newUserRole === "user"
-                          ? "bg-emerald-950/90 border-emerald-400 text-white shadow-lg shadow-emerald-950/60 ring-1 ring-emerald-400/50"
-                          : "bg-[#061209]/60 border-emerald-500/20 text-emerald-300/70 hover:border-emerald-500/40 hover:bg-emerald-950/30"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5 font-bold text-xs text-white">
-                          <UserGroupIcon className="w-4 h-4 text-emerald-400" />
-                          <span>Regular User</span>
-                        </div>
-                        {newUserRole === "user" && (
-                          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                        )}
-                      </div>
-                      <span className="text-[11px] text-emerald-300/60 leading-tight">
-                        User portal, room booking & notifications
-                      </span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setNewUserRole("admin")}
-                      className={`p-3 rounded-xl border text-left transition-all relative flex flex-col gap-1 ${
-                        newUserRole === "admin"
-                          ? "bg-emerald-950/90 border-emerald-400 text-white shadow-lg shadow-emerald-950/60 ring-1 ring-emerald-400/50"
-                          : "bg-[#061209]/60 border-emerald-500/20 text-emerald-300/70 hover:border-emerald-500/40 hover:bg-emerald-950/30"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5 font-bold text-xs text-white">
-                          <ShieldCheckIcon className="w-4 h-4 text-emerald-400" />
-                          <span>Administrator</span>
-                        </div>
-                        {newUserRole === "admin" && (
-                          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                        )}
-                      </div>
-                      <span className="text-[11px] text-emerald-300/60 leading-tight">
-                        Full Admin Console & system controls
-                      </span>
-                    </button>
-                  </div>
-
-                  {/* Dropdown Alternative for Accessibility and Explicit Selection */}
-                  <div className="mt-2.5">
-                    <select
-                      name="role"
-                      value={newUserRole}
-                      onChange={(e) => setNewUserRole(e.target.value)}
-                      className="w-full glass-input px-3 py-2 rounded-xl text-xs border-emerald-500/25 text-emerald-100 bg-[#061209] focus:border-emerald-400"
-                    >
-                      <option value="user" className="bg-[#08120a] text-white">
-                        Role: Regular User (User Portal)
-                      </option>
-                      <option value="admin" className="bg-[#08120a] text-white">
-                        Role: Administrator (Admin Portal)
-                      </option>
-                    </select>
-                  </div>
-
-                  {/* Explanatory hint */}
-                  <div className="mt-2 p-2 rounded-lg bg-emerald-950/40 border border-emerald-500/15 text-[11px] text-emerald-300/80 leading-relaxed">
-                    {newUserRole === "admin" ? (
-                      <span>
-                        🛡️ <strong>Admin Access:</strong> Must log in via <em>Admin Portal</em>. Will have full access to dashboard, bookings, approvals, and user management.
-                      </span>
-                    ) : (
-                      <span>
-                        👤 <strong>User Access:</strong> Must log in via <em>User Portal</em>. Can reserve rooms, view live calendar, and receive notifications.
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={isSubmittingUser}
-                  className="w-full py-3 bg-gradient-to-r from-[#02B81C] to-emerald-500 hover:from-emerald-500 hover:to-[#02B81C] text-white rounded-xl text-sm font-bold shadow-lg shadow-emerald-950/60 flex items-center justify-center gap-2 transition disabled:opacity-60"
+                      const result = await res.json();
+                      if (res.ok) {
+                        alert(result.message || `User created successfully with role '${role}'`);
+                        e.target.reset();
+                        setNewUserRole("user");
+                        mutateUsers();
+                      } else {
+                        alert(result.message || "Failed to create user");
+                      }
+                    } catch (err) {
+                      console.error(err);
+                      alert("Server error creating user.");
+                    } finally {
+                      setIsSubmittingUser(false);
+                    }
+                  }}
+                  className="space-y-4"
                 >
-                  <UserGroupIcon className="w-5 h-5" />
-                  <span>{isSubmittingUser ? "Creating User..." : "Add User"}</span>
-                </button>
-              </form>
+                  {/* Email Address */}
+                  <div>
+                    <label className="block text-xs font-semibold text-emerald-300 mb-1.5 flex items-center gap-1.5">
+                      <EnvelopeIcon className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Email Address</span>
+                    </label>
+                    <input
+                      name="email"
+                      type="email"
+                      required
+                      placeholder="user@university.edu"
+                      className="w-full bg-[#09120b] p-3 rounded-xl text-sm border border-emerald-500/25 text-white placeholder:text-emerald-100/30 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400/40 transition"
+                    />
+                  </div>
+
+                  {/* Password */}
+                  <div>
+                    <label className="block text-xs font-semibold text-emerald-300 mb-1.5 flex items-center gap-1.5">
+                      <LockClosedIcon className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Password</span>
+                    </label>
+                    <input
+                      name="password"
+                      type="password"
+                      required
+                      placeholder="••••••••"
+                      className="w-full bg-[#09120b] p-3 rounded-xl text-sm border border-emerald-500/25 text-white placeholder:text-emerald-100/30 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400/40 transition"
+                    />
+                  </div>
+
+                  {/* Single Unified Role Selection - NO DUPLICATE DROPDOWN */}
+                  <div className="space-y-2 pt-1">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-emerald-300 flex items-center gap-1.5">
+                        <ShieldCheckIcon className="w-4 h-4 text-emerald-400" />
+                        <span>Select User Role</span>
+                      </label>
+                      <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-500/30">
+                        {newUserRole === "admin" ? "Admin Access" : "Student / User"}
+                      </span>
+                    </div>
+
+                    {/* Hidden input ensures standard form submission */}
+                    <input type="hidden" name="role" value={newUserRole} />
+
+                    {/* Responsive Role Cards */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      {/* Regular User Card */}
+                      <button
+                        type="button"
+                        onClick={() => setNewUserRole("user")}
+                        className={`p-3 rounded-2xl border text-left transition-all relative flex flex-col justify-between gap-2 focus:outline-none cursor-pointer ${
+                          newUserRole === "user"
+                            ? "bg-gradient-to-br from-[#062410] to-[#081a0e] border-emerald-400 text-white shadow-lg shadow-emerald-950 ring-1 ring-emerald-400/50"
+                            : "bg-[#061009]/70 border-emerald-500/20 text-emerald-300/60 hover:border-emerald-500/40 hover:text-white"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className={`p-2 rounded-xl ${newUserRole === "user" ? "bg-emerald-500/20 text-emerald-300 border border-emerald-400/30" : "bg-emerald-950/60 text-emerald-500/60"}`}>
+                            <UserGroupIcon className="w-4 h-4" />
+                          </div>
+                          <div className={`w-4 h-4 rounded-full border flex items-center justify-center transition-colors ${
+                            newUserRole === "user" ? "border-emerald-400 bg-emerald-400" : "border-emerald-500/30"
+                          }`}>
+                            {newUserRole === "user" && <div className="w-1.5 h-1.5 rounded-full bg-[#050806]" />}
+                          </div>
+                        </div>
+                        <div>
+                          <span className="font-bold text-xs text-white block">Regular User</span>
+                          <span className="text-[10px] text-emerald-300/60 leading-tight block mt-0.5">
+                            Student & Faculty Portal
+                          </span>
+                        </div>
+                      </button>
+
+                      {/* Administrator Card */}
+                      <button
+                        type="button"
+                        onClick={() => setNewUserRole("admin")}
+                        className={`p-3 rounded-2xl border text-left transition-all relative flex flex-col justify-between gap-2 focus:outline-none cursor-pointer ${
+                          newUserRole === "admin"
+                            ? "bg-gradient-to-br from-[#062410] to-[#0c1328] border-emerald-400 text-white shadow-lg shadow-emerald-950 ring-1 ring-emerald-400/50"
+                            : "bg-[#061009]/70 border-emerald-500/20 text-emerald-300/60 hover:border-emerald-500/40 hover:text-white"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className={`p-2 rounded-xl ${newUserRole === "admin" ? "bg-emerald-500/20 text-emerald-300 border border-emerald-400/30" : "bg-emerald-950/60 text-emerald-500/60"}`}>
+                            <ShieldCheckIcon className="w-4 h-4" />
+                          </div>
+                          <div className={`w-4 h-4 rounded-full border flex items-center justify-center transition-colors ${
+                            newUserRole === "admin" ? "border-emerald-400 bg-emerald-400" : "border-emerald-500/30"
+                          }`}>
+                            {newUserRole === "admin" && <div className="w-1.5 h-1.5 rounded-full bg-[#050806]" />}
+                          </div>
+                        </div>
+                        <div>
+                          <span className="font-bold text-xs text-white block">Administrator</span>
+                          <span className="text-[10px] text-emerald-300/60 leading-tight block mt-0.5">
+                            Full Admin Control
+                          </span>
+                        </div>
+                      </button>
+                    </div>
+
+                    {/* Single Clean Permission Description Card */}
+                    <div className="p-3 rounded-xl bg-emerald-950/30 border border-emerald-500/20 text-xs flex items-start gap-2.5">
+                      {newUserRole === "admin" ? (
+                        <>
+                          <ShieldCheckIcon className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+                          <div className="text-[11px] text-emerald-200/90 leading-relaxed">
+                            <strong className="text-white">Admin Privileges:</strong> Full control over rooms, approving bookings, managing users. Must sign in via <span className="text-emerald-300 font-semibold underline">Admin Portal</span>.
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <UserGroupIcon className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+                          <div className="text-[11px] text-emerald-200/90 leading-relaxed">
+                            <strong className="text-white">Regular User:</strong> Can view calendar, book rooms, and receive real-time notifications. Must sign in via <span className="text-emerald-300 font-semibold underline">User Portal</span>.
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isSubmittingUser}
+                    className="w-full py-3 bg-gradient-to-r from-[#02B81C] to-emerald-500 hover:from-emerald-500 hover:to-[#02B81C] text-white rounded-xl text-sm font-bold shadow-lg shadow-emerald-950/60 flex items-center justify-center gap-2 transition disabled:opacity-60 cursor-pointer"
+                  >
+                    <UserGroupIcon className="w-5 h-5" />
+                    <span>{isSubmittingUser ? "Creating User..." : "Add User"}</span>
+                  </button>
+                </form>
+              </div>
             </div>
 
             {/* Users List */}
-            <div className="lg:col-span-2 glass-card rounded-2xl overflow-hidden border border-emerald-500/20 shadow-xl flex flex-col">
-              <div className="p-5 border-b border-emerald-500/15 flex flex-wrap justify-between items-center gap-3 bg-[#08100a]/80">
-                <div>
-                  <h3 className="text-lg font-bold text-white">Registered System Users</h3>
-                  <p className="text-xs text-emerald-400/60 mt-0.5">
-                    View registered accounts and manage their portal roles
-                  </p>
+            <div className="lg:col-span-2 glass-card rounded-3xl overflow-hidden border border-emerald-500/20 shadow-2xl flex flex-col bg-[#080d09]/95">
+              <div className="p-5 border-b border-emerald-500/15 space-y-4 bg-[#08100a]/90">
+                <div className="flex flex-wrap justify-between items-center gap-3">
+                  <div>
+                    <h3 className="text-lg font-bold text-white">Registered System Users</h3>
+                    <p className="text-xs text-emerald-400/60 mt-0.5">
+                      Manage registered accounts, search users, and update portal roles
+                    </p>
+                  </div>
+
+                  {/* Filter Pills */}
+                  <div className="flex items-center gap-1.5 p-1 rounded-xl bg-emerald-950/60 border border-emerald-500/20 text-xs">
+                    <button
+                      onClick={() => setUserFilterRole("all")}
+                      className={`px-3 py-1 rounded-lg font-medium transition cursor-pointer ${
+                        userFilterRole === "all"
+                          ? "bg-emerald-600 text-white font-bold shadow"
+                          : "text-emerald-300/70 hover:text-white"
+                      }`}
+                    >
+                      All ({safeUsers.length})
+                    </button>
+                    <button
+                      onClick={() => setUserFilterRole("admin")}
+                      className={`px-3 py-1 rounded-lg font-medium transition cursor-pointer ${
+                        userFilterRole === "admin"
+                          ? "bg-emerald-600 text-white font-bold shadow"
+                          : "text-emerald-300/70 hover:text-white"
+                      }`}
+                    >
+                      Admins ({adminCount})
+                    </button>
+                    <button
+                      onClick={() => setUserFilterRole("user")}
+                      className={`px-3 py-1 rounded-lg font-medium transition cursor-pointer ${
+                        userFilterRole === "user"
+                          ? "bg-emerald-600 text-white font-bold shadow"
+                          : "text-emerald-300/70 hover:text-white"
+                      }`}
+                    >
+                      Users ({regularUserCount})
+                    </button>
+                  </div>
                 </div>
 
-                {/* Filter Pills */}
-                <div className="flex items-center gap-1.5 p-1 rounded-xl bg-emerald-950/60 border border-emerald-500/20 text-xs">
-                  <button
-                    onClick={() => setUserFilterRole("all")}
-                    className={`px-3 py-1 rounded-lg font-medium transition ${
-                      userFilterRole === "all"
-                        ? "bg-emerald-600 text-white font-bold shadow"
-                        : "text-emerald-300/70 hover:text-white"
-                    }`}
-                  >
-                    All ({safeUsers.length})
-                  </button>
-                  <button
-                    onClick={() => setUserFilterRole("admin")}
-                    className={`px-3 py-1 rounded-lg font-medium transition ${
-                      userFilterRole === "admin"
-                        ? "bg-emerald-600 text-white font-bold shadow"
-                        : "text-emerald-300/70 hover:text-white"
-                    }`}
-                  >
-                    Admins ({adminCount})
-                  </button>
-                  <button
-                    onClick={() => setUserFilterRole("user")}
-                    className={`px-3 py-1 rounded-lg font-medium transition ${
-                      userFilterRole === "user"
-                        ? "bg-emerald-600 text-white font-bold shadow"
-                        : "text-emerald-300/70 hover:text-white"
-                    }`}
-                  >
-                    Users ({regularUserCount})
-                  </button>
+                {/* Search Bar */}
+                <div className="relative">
+                  <MagnifyingGlassIcon className="w-4 h-4 text-emerald-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={userSearch}
+                    onChange={(e) => setUserSearch(e.target.value)}
+                    placeholder="Search user by email or ID..."
+                    className="w-full bg-[#050c07] border border-emerald-500/20 rounded-xl pl-10 pr-4 py-2 text-xs text-white placeholder-emerald-100/30 focus:border-emerald-400 focus:outline-none transition"
+                  />
+                  {userSearch && (
+                    <button
+                      onClick={() => setUserSearch("")}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-emerald-400/60 hover:text-white"
+                    >
+                      Clear
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -916,9 +955,9 @@ export default function AdminPanel() {
                     return (
                       <li
                         key={user.id}
-                        className="p-4 flex flex-wrap items-center justify-between gap-4 hover:bg-emerald-900/20 transition-colors"
+                        className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-emerald-900/15 transition-colors"
                       >
-                        <div className="flex items-center gap-3 min-w-[220px]">
+                        <div className="flex items-center gap-3 min-w-0">
                           <div
                             className={`w-11 h-11 rounded-2xl border flex items-center justify-center font-bold flex-shrink-0 shadow ${
                               isAdmin
@@ -932,9 +971,9 @@ export default function AdminPanel() {
                               <UserGroupIcon className="w-5 h-5 text-emerald-400" />
                             )}
                           </div>
-                          <div>
-                            <div className="text-sm font-bold text-white break-all flex items-center gap-2">
-                              <span>{user.email}</span>
+                          <div className="min-w-0">
+                            <div className="text-sm font-bold text-white truncate max-w-xs sm:max-w-md">
+                              {user.email}
                             </div>
                             <div className="flex items-center gap-2 mt-1">
                               <span className="text-[11px] font-mono text-emerald-400/70">
@@ -957,16 +996,16 @@ export default function AdminPanel() {
                         </div>
 
                         {/* Role Switcher & Delete Actions */}
-                        <div className="flex items-center gap-2.5">
+                        <div className="flex items-center gap-2.5 self-end sm:self-auto flex-shrink-0">
                           {/* Role Selector Dropdown */}
                           <div className="flex items-center gap-1.5">
-                            <span className="text-[11px] text-emerald-300/60 font-medium hidden sm:inline">
+                            <span className="text-[11px] text-emerald-300/60 font-medium hidden md:inline">
                               Role:
                             </span>
                             <select
                               value={isAdmin ? "admin" : "user"}
                               onChange={(e) => handleUpdateUserRole(user.id, e.target.value)}
-                              className="px-2.5 py-1.5 rounded-xl bg-emerald-950/80 border border-emerald-500/30 text-emerald-200 text-xs font-semibold focus:outline-none focus:border-emerald-400 cursor-pointer hover:bg-emerald-900/40 transition"
+                              className="px-2.5 py-1.5 rounded-xl bg-emerald-950/90 border border-emerald-500/30 text-emerald-200 text-xs font-semibold focus:outline-none focus:border-emerald-400 cursor-pointer hover:bg-emerald-900/40 transition"
                               title="Change user role"
                             >
                               <option value="user" className="bg-[#08120a] text-white">
@@ -980,7 +1019,7 @@ export default function AdminPanel() {
 
                           <button
                             onClick={() => handleDeleteUser(user.id)}
-                            className="px-3 py-1.5 bg-red-600/80 hover:bg-red-600 text-white rounded-xl text-xs font-semibold flex items-center gap-1 transition shadow shadow-red-950/50"
+                            className="px-3 py-1.5 bg-red-600/80 hover:bg-red-600 text-white rounded-xl text-xs font-semibold flex items-center gap-1 transition shadow shadow-red-950/50 cursor-pointer"
                             title="Delete user account"
                           >
                             <TrashIcon className="w-3.5 h-3.5" />
@@ -994,9 +1033,9 @@ export default function AdminPanel() {
               ) : (
                 <div className="p-12 text-center space-y-2 text-emerald-200/60">
                   <UserGroupIcon className="w-10 h-10 mx-auto text-emerald-500/30" />
-                  <p className="text-sm font-semibold text-white">No users match the selected filter</p>
+                  <p className="text-sm font-semibold text-white">No users match your search/filter</p>
                   <p className="text-xs text-emerald-400/60">
-                    Switch to &apos;All&apos; to view all registered users.
+                    Try adjusting the search query or switch filter to &apos;All&apos;.
                   </p>
                 </div>
               )}
