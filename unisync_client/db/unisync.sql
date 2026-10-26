@@ -161,6 +161,14 @@ INSERT INTO notifications (user_email, title, message, type, is_read)
 VALUES 
     ('saifulkabirchowdhury@gmail.com', 'Booking Confirmed', 'Your reservation for E-101 on 2026-10-27 (11:03:00 - 00:03:00) is approved and active.', 'success', false),
     ('saifulkabirchowdhury@gmail.com', 'Pending Approval', 'Your booking request for G-101 on 2026-10-29 (11:15 - 15:17) has been received and is waiting for administrator approval.', 'warning', false)
-ON DUPLICATE KEY UPDATE title = VALUES(title);
+-- User Roles Queries and Verification
+-- Ensure users table has role column with default 'user'
+-- ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'user';
+
+SELECT id, email, role FROM users;
+
+-- Example: Updating user role directly if needed
+-- UPDATE users SET role = 'admin' WHERE email = 'admin@unisync.com';
+-- UPDATE users SET role = 'user' WHERE email = 'saiful@gmail.com';
 
 SELECT * FROM notifications;

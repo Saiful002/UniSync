@@ -691,29 +691,93 @@ app.post('/api/users', async (req, res) => {
     }
 
     const { email, password, role } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ message: 'Email and password are required' });
+    }
+
+    const assignedRole = (role && role.toLowerCase() === 'admin') ? 'admin' : 'user';
+
     await db.query(
       'INSERT INTO users (email, password, role) VALUES (?, ?, ?)',
-      [email, password, role || 'user']
+      [email, password, assignedRole]
     );
-    res.json({ message: 'User created successfully by Administrator' });
+
+    res.json({ 
+      message: `User created successfully as ${assignedRole === 'admin' ? 'Administrator' : 'Regular User'}`,
+      role: assignedRole,
+      email 
+    });
   } catch (error) {
     console.error('Add user error:', error);
+    if (error.code === 'ER_DUP_ENTRY' || error.errno === 1062) {
+      return res.status(409).json({ message: 'A user with this email address already exists.' });
+    }
     res.status(500).json({ message: 'Failed to create user' });
+  }
+});
+
+app.put('/api/users/:id/role', async (req, res) => {
+  const token = getToken(req);
+  if (!token) return res.status(401).json({ message: 'Unauthorized: Admin authentication required' });
+
+  try {
+    const decoded = jwt.verify(token, SECRET_KEY);
+    if (decoded.role !== 'admin' && !decoded.email.includes('admin')) {
+      return res.status(403).json({ message: 'Forbidden: Only administrators can update user roles' });
+    }
+
+    const { role } = req.body;
+    const targetRole = (role && role.toLowerCase() === 'admin') ? 'admin' : 'user';
+
+    await db.query('UPDATE users SET role = ? WHERE id = ?', [targetRole, req.params.id]);
+
+    res.json({ 
+      message: `User role updated to ${targetRole === 'admin' ? 'Administrator' : 'Regular User'} successfully`,
+      role: targetRole 
+    });
+  } catch (error) {
+    console.error('Update user role error:', error);
+    res.status(500).json({ message: 'Failed to update user role' });
   }
 });
 
 app.get('/api/users', async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT id, email, role FROM users');
+    const [rows] = await db.query('SELECT id, email, role FROM users ORDER BY id ASC');
     res.json(rows);
   } catch (error) {
     res.status(500).json({ message: 'Failed to fetch users' });
   }
 });
 
-app.delete('/api/users/:id', async (req, res) => {
-  const { id } = req.params;
+app.get('/api/me', async (req, res) => {
+  const token = getToken(req);
+  if (!token) return res.status(401).json({ message: 'Not authenticated' });
   try {
+    const decoded = jwt.verify(token, SECRET_KEY);
+    const [rows] = await db.query('SELECT id, email, role FROM users WHERE id = ?', [decoded.id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    const user = rows[0];
+    const role = (user.role || (user.email.includes('admin') ? 'admin' : 'user')).toLowerCase();
+    res.json({ id: user.id, email: user.email, role });
+  } catch (err) {
+    res.status(401).json({ message: 'Invalid or expired token' });
+  }
+});
+
+app.delete('/api/users/:id', async (req, res) => {
+  const token = getToken(req);
+  if (!token) return res.status(401).json({ message: 'Unauthorized: Admin authentication required' });
+
+  try {
+    const decoded = jwt.verify(token, SECRET_KEY);
+    if (decoded.role !== 'admin' && !decoded.email.includes('admin')) {
+      return res.status(403).json({ message: 'Forbidden: Only administrators can delete users' });
+    }
+
+    const { id } = req.params;
     await db.query('DELETE FROM users WHERE id = ?', [id]);
     res.json({ message: 'User deleted successfully' });
   } catch (error) {

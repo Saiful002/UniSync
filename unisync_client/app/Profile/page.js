@@ -120,7 +120,7 @@ export default function ProfilePage() {
           <div className="pt-2">
             <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-emerald-950/80 border border-emerald-500/30 text-emerald-300 text-xs font-bold">
               <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              <span>{user?.email?.includes("admin") ? "Administrator" : "Verified Student"}</span>
+              <span>{user?.role === "admin" || user?.email?.includes("admin") ? "Administrator" : "Verified Student / User"}</span>
             </span>
           </div>
 
@@ -133,7 +133,9 @@ export default function ProfilePage() {
             </div>
             <div className="flex justify-between items-center text-xs">
               <span className="text-emerald-200/70">Access Role:</span>
-              <span className="text-white font-semibold">{user?.email?.includes("admin") ? "Admin Panel Access" : "Room Reservation"}</span>
+              <span className="text-white font-semibold">
+                {user?.role === "admin" || user?.email?.includes("admin") ? "Admin Panel Access" : "Room Reservation & User Portal"}
+              </span>
             </div>
           </div>
         </div>
